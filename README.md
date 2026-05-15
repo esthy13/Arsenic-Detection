@@ -21,3 +21,9 @@ Data-driven (arsenic) contamination detection project for the course Machine Lea
     pip install -r requirements.txt
     ```
 
+**Remember**
+If you install new libraries on your local environment before committing and 
+pushing to the repository do:
+```bash
+python -m pip freeze > requirements.txt
+```
