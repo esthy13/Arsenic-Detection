@@ -1,17 +1,19 @@
 """
 Example of adding a simple arsenic contamination event to a scenario.
 """
+import os
 import numpy as np
 from epyt_flow.data.benchmarks import load_leakdb_scenarios
 from epyt_flow.simulation import ScenarioSimulator, EpanetConstants, ScenarioConfig
 from epyt_flow.simulation.events import SpeciesInjectionEvent
 from epyt_flow.utils import to_seconds
+import matplotlib.pyplot as plt
 
 
 if __name__ == "__main__":
     # Create a new scenario based on the first Net1 LeakDB scenario --
     # we add an additional EPANET-MSX configuration file
-    config, = load_leakdb_scenarios(scenarios_id=["1"], use_net1=True)
+    config, = load_leakdb_scenarios(scenarios_id=['1'], use_net1=True)
     config = ScenarioConfig(scenario_config=config,
                             f_msx_in="arsenic_contamination.msx")
 
@@ -41,3 +43,7 @@ if __name__ == "__main__":
         # Inspect simulation results -- i.e. sensor readings over time
         scada_data.plot_bulk_species_node_concentration({"Chlorine": cl_sensor_locations})
         scada_data.plot_bulk_species_node_concentration({"AsIII": all_nodes})
+        
+        os.makedirs("./plots", exist_ok=True)
+        plt.savefig("./plots/chlorine_concentration.png")
+        plt.savefig("./plots/arsenic_concentration.png")
