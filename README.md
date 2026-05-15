@@ -19,4 +19,5 @@ Data-driven (arsenic) contamination detection project for the course Machine Lea
 3. Install the needed libraries from the requirements file
     ```bash
     pip install -r requirements.txt
+    ```
 
