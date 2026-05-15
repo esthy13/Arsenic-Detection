@@ -3,6 +3,8 @@ Example of adding a simple arsenic contamination event to a scenario.
 """
 import os
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 from epyt_flow.data.benchmarks import load_leakdb_scenarios
 from epyt_flow.simulation import ScenarioSimulator, EpanetConstants, ScenarioConfig
 from epyt_flow.simulation.events import SpeciesInjectionEvent
@@ -40,11 +42,10 @@ if __name__ == "__main__":
 
         # Run simulation
         scada_data = sim.run_simulation()
+        os.makedirs("./plots", exist_ok=True)
 
         # Inspect simulation results -- i.e. sensor readings over time
         scada_data.plot_bulk_species_node_concentration({"Chlorine": cl_sensor_locations})
-        scada_data.plot_bulk_species_node_concentration({"AsIII": all_nodes})
-        
-        os.makedirs("./plots", exist_ok=True)
         plt.savefig("./plots/chlorine_concentration.png")
+        scada_data.plot_bulk_species_node_concentration({"AsIII": all_nodes})
         plt.savefig("./plots/arsenic_concentration.png")
