@@ -50,7 +50,13 @@ Conclusion: our project is a software solution that can take advantage of alread
 # Methodology idea
 1. build a data set for arsenic contamination by symulating arsenic contamination events with EPyT-Flow
 2. Choose and use a chlorine injection pattern (also constant is allowed)
-3. Choose a model for chlorine decay
+3. Choose a model for chlorine decay:
+    EPANET internally uses by default bulk decay:
+    ![alt text](<Screenshot 2026-05-29 at 16.03.27.png>)
+    [@Monteiro_Figueiredo_Dias_Freitas_Covas_Menaia_Coelho_2014](papers/1-s2.0-S1877705814001349-main.pdf) mentioned the problem that MSX is not super user friendly if you don't know msdos, or if you aren't a programmer... they also used EPANET to simulate chlorine decay
+
+    From the [@epanet_manual](papers/EPANETMSX.pdf#page=48) we found out how to set up bulk decay in our project.
+
 4. Choose an event/anomaly detection method t identify water contamination
 5. Performance test: evaluation of the chosen method
 6. Optimization: optimize size and location where these contamination events can be detected better.
