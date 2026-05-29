@@ -21,7 +21,8 @@ https://www.sciencedirect.com/science/article/pii/S0043135415002730
 
 ## Advanced Sensor for Arsenic and Fluoride Detection
 https://link.springer.com/chapter/10.1007/978-981-19-9151-6_48
---> issues with arsenic contamination, why developing an arsenic sensor is not easy (it's a work in progress)
+- just the abstract is useful
+- issues with arsenic contamination, why developing an arsenic sensor is not easy (it's a work in progress)
 Conclusion: our project is a software solution that can take advantage of already available sensors, for flow and chlorine without the need of buying, building and installing more expensive sensors.
 
 ## Water Quality Event Detection in Drinking Water Network
