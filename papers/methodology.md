@@ -14,8 +14,12 @@
    First intuition (Without having read anything): Just compare the normal level of chlorine to the current level of chlorine
    and look whether it is different. Since chlorine injection is constant, only an exterior influence (like arsenic) can cause a
    lower chlorine level. Did I get the point? I'm unsure
-5. Performance test: evaluation of the chosen method
+
+   Update: Zhao et al. use that strategy too
+   <img width="1192" height="409" alt="grafik" src="https://github.com/user-attachments/assets/c5252783-7311-472d-8c25-b0506d6f5256" />
+
+6. Performance test: evaluation of the chosen method
    First intuition (Without having read anything): We talked about accuracy and event detection latency. Since both of these
    will be cardinal/metric data, good metrics would be the mean and the standard deviation. For comparing two models.
    Especially the latency time might be linked to the runtime of the model, so maybe check that too? 
-6. Optimization: optimize size and location where these contamination events can be detected better.
+7. Optimization: optimize size and location where these contamination events can be detected better.
