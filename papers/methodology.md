@@ -46,9 +46,10 @@
     (refences: @krause2008efficient, @eliades2008iterative, @dorini2010slots)
 
 
-Why does Arsenic contamination happen and why it is dangerous?
+# Why does Arsenic contamination happen and why it is dangerous?
+<!-- TODO -->
 
-Extra references
+### Extra references
 ```bibtex
 @incollection{raciti2012anomaly,
   title={Anomaly detection in water management systems},
