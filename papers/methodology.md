@@ -16,7 +16,6 @@
     - A simple method: **linear prediction**, for a reference -> [Detecting Changes in Water Quality Data](Journal%20AWWA%20-%202008%20-%20McKenna%20-%20Detecting%20Changes%20in%20Water%20Quality%20Data.pdf)
         the water quality parameter is predicted for the next time step, and he predicted value is compared to the measured value. The residual is used as anomaly score:
         $$a(t)=r(t)=\hat{x}(t)-x(t)$$
-        <!-- TODO explain the symbols -->
     - A more complex (and supposedly better performing method): based on **artificial neural networks (ANN)**, with dynamic treshold, for a reference, check [A dynamic thresholds scheme for contaminant event detection in water distribution systems](papers/1-s2.0-S0043135413000341-main.pdf), where the anomaly score is just the water quality data itself, but the threshold is adaptive according to the current water quality: $$a(t) = x(t)$$
 
     Meaning of math variables:
@@ -101,6 +100,7 @@ Extra references
   publisher={American Society of Civil Engineers}
 }
 ```
+---
    First intuition (Without having read anything): Just compare the normal level of chlorine to the current level of chlorine
    and look whether it is different. Since chlorine injection is constant, only an exterior influence (like arsenic) can cause a
    lower chlorine level. Did I get the point? I'm unsure
@@ -115,6 +115,6 @@ Extra references
    To compare different evaluation metrics of different sensor locations or different implementations, statistical tests like
    the t-test can be used. The hypothesis here would be, placement/implementation a is better than placement/implementation b.
    As p-value, something like 0.05 could be chosen. 
-7. Optimization: optimize size and location where these contamination events can be detected better.
+6. Optimization: optimize size and location where these contamination events can be detected better.
    Zhao et al. sum up that there are different methods for finding the best sensor placements like mixed-integer programming or
    GRASP. These can be implemented by programming.
