@@ -32,7 +32,7 @@ Conclusion: our project is a software solution that can take advantage of alread
 `@Zhao_Hou_Huang_Zhang_2014`
 - https://link.springer.com/article/10.1007/s11270-014-2183-7
 - [PDF](s11270-014-2183-7.pdf)
-- this article is a review, that explains water event detection (definitions, methods ect.)
+- this article is a **review**, that explains water event detection (definitions, methods ect.)
 - useful as first resource to understan better how to tackle anomaly/event detection
 
 ## Other papers that could become handy in the future:
