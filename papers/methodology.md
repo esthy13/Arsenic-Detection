@@ -11,5 +11,11 @@
 
     From the [@epanet_manual](EPANETMSX.pdf) at the 48th page of the pdf we found out how to set up bulk decay in our project. (still an investigation of how to set the parameters for a correct bulk decay needs to be done, but it looks like it's kinda implemented out of the box)
 4. Choose an event/anomaly detection method t identify water contamination
+   First intuition (Without having read anything): Just compare the normal level of chlorine to the current level of chlorine
+   and look whether it is different. Since chlorine injection is constant, only an exterior influence (like arsenic) can cause a
+   lower chlorine level. Did I get the point? I'm unsure
 5. Performance test: evaluation of the chosen method
+   First intuition (Without having read anything): We talked about accuracy and event detection latency. Since both of these
+   will be cardinal/metric data, good metrics would be the mean and the standard deviation. For comparing two models.
+   Especially the latency time might be linked to the runtime of the model, so maybe check that too? 
 6. Optimization: optimize size and location where these contamination events can be detected better.
