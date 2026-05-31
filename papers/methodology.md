@@ -103,8 +103,7 @@
 ```
 ---
    First intuition (Without having read anything): Just compare the normal level of chlorine to the current level of chlorine
-   and look whether it is different. Since chlorine injection is constant, only an exterior influence (like arsenic) can cause a
-   lower chlorine level. Did I get the point? I'm unsure
+   and look whether it is different. Since chlorine injection is constant, only an exterior influence (like arsenic) can cause a lower chlorine level. Did I get the point? I'm unsure
 
    Update: Zhao et al. use that strategy too
    <img width="1192" height="409" alt="grafik" src="https://github.com/user-attachments/assets/c5252783-7311-472d-8c25-b0506d6f5256" />
