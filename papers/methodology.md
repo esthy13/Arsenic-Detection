@@ -120,6 +120,10 @@
    Optimization problem (sensor placement) is a p-median problem, definition      (German):
    https://www.opt.math.tugraz.at/~cela/Vorlesungen/ProSem11-12/Emser.pdf
 
+   <img width="1159" height="532" alt="grafik" src="https://github.com/user-attachments/assets/065a83fe-9988-4144-bf2a-080fefd39598" />
+
+   <img width="1105" height="504" alt="grafik" src="https://github.com/user-attachments/assets/8b363efc-9d8e-4727-9b01-72c16d527ca3" />
+
    Zhao et al. sum up that there are different methods for finding the best sensor placements like mixed-integer programming or
    GRASP. These can be implemented by programming.
 
