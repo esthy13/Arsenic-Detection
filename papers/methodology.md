@@ -116,5 +116,19 @@
    the t-test can be used. The hypothesis here would be, placement/implementation a is better than placement/implementation b.
    As p-value, something like 0.05 could be chosen. 
 6. Optimization: optimize size and location where these contamination events can be detected better.
+
+   Optimization problem (sensor placement) is a p-median problem, definition      (German):
+   https://www.opt.math.tugraz.at/~cela/Vorlesungen/ProSem11-12/Emser.pdf
+
    Zhao et al. sum up that there are different methods for finding the best sensor placements like mixed-integer programming or
    GRASP. These can be implemented by programming.
+
+   More information on GRASP (USEPA, 2009):
+       "Usually as good as MIP" (USEPA, 2009)
+       Explores the space of possible sensor placements
+        1. random set of starting points (for the sensors), using greedy bias
+        2. consider ways to move the sensors to improve the performance (swapping
+           sensor position with neighbor position
+        3. repeat 2 until no better swap possible
+   
+   
