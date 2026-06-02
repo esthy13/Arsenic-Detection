@@ -103,10 +103,12 @@
 ```
 ---
    First intuition (Without having read anything): Just compare the normal level of chlorine to the current level of chlorine
-   and look whether it is different. Since chlorine injection is constant, only an exterior influence (like arsenic) can cause a lower chlorine level. Did I get the point? I'm unsure
+   and look whether it is different. Since chlorine injection is constant, only an exterior influence (like arsenic) can cause a lower chlorine level. Did I get the point? 
 
    Update: Zhao et al. use that strategy too
    <img width="1192" height="409" alt="grafik" src="https://github.com/user-attachments/assets/c5252783-7311-472d-8c25-b0506d6f5256" />
+
+   Addition: I found various papers: (https://www.sciencedirect.com/science/article/pii/S1367578823000159) and https://ieeexplore.ieee.org/abstract/document/6411190, among others. These two I found to be the most promising. Nevertheless, the dynamic model, you mentioned seems to be simpler, which is why I think it is smarter to use that one
 
 5. Performance test: evaluation of the chosen method
    First intuition (Without having read anything): We talked about accuracy and event detection latency. Since both of these
