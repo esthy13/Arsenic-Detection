@@ -124,7 +124,7 @@
    <img width="655" height="538" alt="grafik" src="https://github.com/user-attachments/assets/77569906-cc1a-49b2-8091-036c0df8d8b4" />
 
 
-
+    https://link.springer.com/article/10.1007/s11270-014-2183-7 (Zhao et al.)
    Zhao et al. sum up that there are different methods for finding the best sensor placements like mixed-integer programming or
    GRASP. These can be implemented by programming.
 
@@ -136,4 +136,5 @@
            sensor position with neighbor position
         3. repeat 2 until no better swap possible
    
-   
+
+   USEPA paper: (https://nepis.epa.gov/Exe/ZyPDF.cgi/P10077WZ.PDF?Dockey=P10077WZ.PDF)
