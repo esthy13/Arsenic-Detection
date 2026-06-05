@@ -31,6 +31,11 @@ if __name__ == "__main__":
                                            # Also: Keep track of the contaminant
                                            "AsIII": all_nodes})   # Arsenite
 
+        # Chlorine injection at node "10" -- i.e. a constant concentration source of 1mg/L
+        sim.add_quality_source(node_id="10",
+                       pattern=np.array([1.]),
+                       source_type=EpanetConstants.EN_CONCEN)
+
         # Create a 1-day contamination event --
         # i.e. injection of Arsenite (100mg/L) at node "22"
         contamination_event = SpeciesInjectionEvent(species_id="AsIII", node_id="22",
