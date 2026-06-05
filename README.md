@@ -2,10 +2,10 @@
 Data-driven (arsenic) contamination detection project for the course Machine Learning for Water Distribution System at the university of Bielefeld (a.a. 2025-2026)
 
 # How to run the project
-
+First verify you have a version of python 3.12 and uv package manager installed on your device.
 0. On your first time create a virtual environment
     ```bash
-    python -m venv .venv
+    uv sync
     ```
 1. Activate the virtual environment .venv
     on linux:
@@ -16,14 +16,9 @@ Data-driven (arsenic) contamination detection project for the course Machine Lea
     ```ps
     .venv\Scripts\activate
     ```
-3. Install the needed libraries from the requirements file
-    ```bash
-    pip install -r requirements.txt
-    ```
 
-**Remember**
-If you install new libraries on your local environment before committing and 
-pushing to the repository do:
+## Remember!
+The correct way to install a new libraries on your local environment is:
 ```bash
-python -m pip freeze > requirements.txt
+uv add <library_name>
 ```
