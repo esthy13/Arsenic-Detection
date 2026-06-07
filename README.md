@@ -22,3 +22,7 @@ The correct way to install a new libraries on your local environment is:
 ```bash
 uv add <library_name>
 ```
+
+# Link to the report
+
+https://unibielefeldde-my.sharepoint.com/:w:/r/personal/julian_wick_uni-bielefeld_de/Documents/Dokumente/Uni/Master/Semester%208/WDN/Report.docx?d=wc81b8dfa5fde43c49d45f7bd3dd66571&csf=1&web=1&e=qlJz6v
