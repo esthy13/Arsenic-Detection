@@ -146,3 +146,12 @@
    3. repeat 2 until no better swap possible
 
    USEPA paper: (https://nepis.epa.gov/Exe/ZyPDF.cgi/P10077WZ.PDF?Dockey=P10077WZ.PDF)
+
+
+
+   # Notes from presentation
+
+   1. Set threshold for linear prediction
+      Use a scenario with no arsenic at all, and see what the threshold has to be in order to predict no contamination at all
+      -> right threshold
+   2. Regression score not so good, plot predicted value and ground_truth -> That works better
