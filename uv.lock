@@ -16,10 +16,14 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "epyt-flow" },
+    { name = "scikit-learn" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "epyt-flow", specifier = ">=0.17.1" }]
+requires-dist = [
+    { name = "epyt-flow", specifier = ">=0.17.1" },
+    { name = "scikit-learn", specifier = ">=1.9.0" },
+]
 
 [[package]]
 name = "certifi"
