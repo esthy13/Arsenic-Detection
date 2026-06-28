@@ -7,4 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "epyt-flow>=0.17.1",
     "scikit-learn>=1.9.0",
+    "numpy>=1.26",
+    "torch>=2.2",
 ]
