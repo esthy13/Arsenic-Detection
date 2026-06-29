@@ -82,19 +82,19 @@ def load_detector(
     metadata_path = load_dir / "metadata.pkl"
     with open(metadata_path, "rb") as f:
         metadata = pickle.load(f)
-    print(f"✓ Metadata loaded from {metadata_path}")
+    print(f"Metadata loaded from {metadata_path}")
     
     # Load scalers
     scalers_path = load_dir / "scalers.pkl"
     with open(scalers_path, "rb") as f:
         scalers: Scalers = pickle.load(f)
-    print(f"✓ Scalers loaded from {scalers_path}")
+    print(f"Scalers loaded from {scalers_path}")
     
     # Load threshold config
     threshold_path = load_dir / "threshold.pkl"
     with open(threshold_path, "rb") as f:
         threshold: ThresholdConfig = pickle.load(f)
-    print(f"✓ Threshold config loaded from {threshold_path}")
+    print(f"Threshold config loaded from {threshold_path}")
     
     # Recreate model
     torch_device = torch.device(device)
