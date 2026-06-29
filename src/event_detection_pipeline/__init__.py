@@ -5,6 +5,14 @@ from .model import WaterQualityANN
 from .pipeline import EventDetector, build_detector, run_pipeline
 from .thresholding import fit_threshold
 from .classes import DatasetSplit, DetectionResult, Scalers, SensorGroups, ThresholdConfig
+from .evaluation import (
+    calculate_sensitivity_specificity,
+    plot_roc_curve_event_detection,
+    plot_roc_curve_chlorine_prediction,
+    plot_precision_recall_curve,
+    plot_evaluation_metrics,
+    get_evaluation_summary,
+)
 
 __all__ = [
     "DEFAULT_EVENT_END_SECONDS",
@@ -23,4 +31,10 @@ __all__ = [
     "split_train_test",
     "fit_threshold",
     "main",
+    "calculate_sensitivity_specificity",
+    "plot_roc_curve_event_detection",
+    "plot_roc_curve_chlorine_prediction",
+    "plot_precision_recall_curve",
+    "plot_evaluation_metrics",
+    "get_evaluation_summary",
 ]
