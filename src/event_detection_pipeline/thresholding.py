@@ -106,7 +106,9 @@ def fit_threshold(
     candidate_filters = (1.5, 2.0, 3.0)
 
     best_objective = float("inf")
-    best_config = ThresholdConfig(0.05, 1.0, 1.0, 3.0, -3.0)
+    best_config = ThresholdConfig(window_size_seconds=0.0, window_fraction=0.05, 
+                                  upper_multiplier=1.0, lower_multiplier=1.0, 
+                                  outlier_upper=3.0, outlier_lower=-3.0)
     best_tp = 0.0
     best_fp = 0.0
     best_upper = np.zeros_like(residuals)
@@ -117,6 +119,7 @@ def fit_threshold(
             for lower_multiplier in candidate_multipliers:
                 for filter_scale in candidate_filters:
                     config = ThresholdConfig(
+                        window_size_seconds=0.0,
                         window_fraction=window_fraction,
                         upper_multiplier=upper_multiplier,
                         lower_multiplier=lower_multiplier,

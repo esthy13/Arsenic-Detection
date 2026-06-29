@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Sequence
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 import numpy as np
 import torch
@@ -39,6 +40,24 @@ class EventDetector:
         self.device = device
         self.history = history
         self.groups = groups
+
+    def prediction_confusion_matrix( self, path: Path, event_start_seconds: 
+        float = DEFAULT_EVENT_START_SECONDS, event_end_seconds: 
+        float = DEFAULT_EVENT_END_SECONDS,):
+        result = self.detect(
+            path,
+            event_start_seconds=event_start_seconds,
+            event_end_seconds=event_end_seconds,
+        )
+
+        cm = confusion_matrix(
+            result.event_flags,
+            result.alarms,
+            labels=[False, True],
+            normalize='all' 
+        )
+        disp = ConfusionMatrixDisplay(cm)
+        return disp
 
     def detect(self, path: Path, *, 
                event_start_seconds: float = DEFAULT_EVENT_START_SECONDS, 
