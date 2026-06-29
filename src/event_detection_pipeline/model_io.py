@@ -16,13 +16,13 @@ def save_detector(
 ) -> None:
     """
     Save detector model, scalers, threshold config, and metadata to disk.
-    Creates the directory if it doesn't exist.
+    Creates the directory and all parent directories if they don't exist.
     
     Args:
         detector: EventDetector instance to save
         directory: Directory path to save files (will be created if it doesn't exist)
     """
-    # Create directory if it doesn't exist
+    # Create directory and all parent directories if they don't exist
     save_dir = Path(directory)
     save_dir.mkdir(parents=True, exist_ok=True)
     
@@ -56,7 +56,7 @@ def save_detector(
         pickle.dump(metadata, f)
     print(f"✓ Metadata saved to {metadata_path}")
     
-    print(f"\n✓ All files saved to {save_dir.absolute()}/")
+    print(f"\n✓ All files saved to {save_dir.resolve()}/")
 
 
 def load_detector(
@@ -76,7 +76,7 @@ def load_detector(
     load_dir = Path(directory)
     
     if not load_dir.exists():
-        raise FileNotFoundError(f"Directory {load_dir} does not exist")
+        raise FileNotFoundError(f"Directory {load_dir.resolve()} does not exist")
     
     # Load metadata
     metadata_path = load_dir / "metadata.pkl"
@@ -125,5 +125,5 @@ def load_detector(
         groups=metadata["groups"],
     )
     
-    print(f"\n✓ Detector successfully loaded from {load_dir.absolute()}/")
+    print(f"\n✓ Detector successfully loaded from {load_dir.resolve()}/")
     return detector
