@@ -21,5 +21,7 @@
 TODO Future tasks:
 
 - Rock curve, sensitivity and specificity to evaluate and fine-tune the ANN
-- Other methods to effectively tune ANN (maybe ask the professor)
+- Other methods to effectively tune ANN (maybe ask the professor)?
 - IDEA: check if flow is influenced by Arsenic Contamination or not
+- check your results with the one from the paper to understand if you are doing, better or worse, or if it is just fine
+- issue with detector weights loader when I make a ntwork with hidden size (32,), why?
