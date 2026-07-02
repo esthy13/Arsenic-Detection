@@ -31,7 +31,8 @@ class EventDetector:
     def __init__(self, model: WaterQualityANN, scalers: Scalers, 
                  threshold: ThresholdConfig, true_positive_rate: float, 
                  false_positive_rate: float, device: torch.device, history: int, 
-                 groups: SensorGroups):
+                 groups: SensorGroups, epochs: int = 80, batch_size: int = 128,
+                 learning_rate: float = 1e-3, hidden_sizes: Sequence[int] = (128, 64)):
         self.model = model
         self.scalers = scalers
         self.threshold = threshold
@@ -40,6 +41,10 @@ class EventDetector:
         self.device = device
         self.history = history
         self.groups = groups
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
+        self.hidden_sizes = tuple(hidden_sizes)
 
     def prediction_confusion_matrix( self, path: Path, event_start_seconds: 
         float = DEFAULT_EVENT_START_SECONDS, event_end_seconds: 
@@ -178,6 +183,10 @@ def build_detector(
         device=device,
         history=history,
         groups=groups,
+        epochs=epochs,
+        batch_size=batch_size,
+        learning_rate=learning_rate,
+        hidden_sizes=hidden_sizes,
     )
 
 

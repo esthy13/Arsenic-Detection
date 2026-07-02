@@ -10,6 +10,19 @@ from .model import WaterQualityANN
 from .pipeline import EventDetector
 
 
+def _infer_hidden_sizes(state_dict: dict[str, torch.Tensor]) -> tuple[int, ...]:
+    linear_weight_keys = sorted(
+        (
+            key for key in state_dict
+            if key.startswith("network.") and key.endswith(".weight")
+        ),
+        key=lambda key: int(key.split(".")[1]),
+    )
+    if not linear_weight_keys:
+        raise ValueError("Could not infer model architecture from saved weights")
+    return tuple(int(state_dict[key].shape[0]) for key in linear_weight_keys[:-1])
+
+
 def save_detector(
     detector: EventDetector,
     directory: str = "weights",
@@ -46,6 +59,10 @@ def save_detector(
     # Save other metadata
     metadata = {
         "history": detector.history,
+        "epochs": detector.epochs,
+        "batch_size": detector.batch_size,
+        "learning_rate": detector.learning_rate,
+        "hidden_sizes": detector.hidden_sizes,
         "groups": detector.groups,
         "device": str(detector.device),
         "true_positive_rate": detector.true_positive_rate,
@@ -96,19 +113,21 @@ def load_detector(
         threshold: ThresholdConfig = pickle.load(f)
     print(f"Threshold config loaded from {threshold_path}")
     
-    # Recreate model
     torch_device = torch.device(device)
     input_dim = scalers.input_mean.shape[0]
     output_dim = scalers.target_mean.shape[0]
+    model_path = load_dir / "model_weights.pth"
+    state_dict = torch.load(model_path, map_location=torch_device)
+    hidden_sizes = tuple(metadata["hidden_sizes"]) if "hidden_sizes" in metadata else _infer_hidden_sizes(state_dict)
     
+    # Recreate model
     model = WaterQualityANN(
         input_dim=input_dim,
         output_dim=output_dim,
+        hidden_sizes=hidden_sizes,
     )
     
     # Load model weights
-    model_path = load_dir / "model_weights.pth"
-    state_dict = torch.load(model_path, map_location=torch_device)
     model.load_state_dict(state_dict)
     model.to(torch_device)
     print(f"✓ Model weights loaded from {model_path}")
@@ -123,6 +142,10 @@ def load_detector(
         device=torch_device,
         history=metadata["history"],
         groups=metadata["groups"],
+        epochs=metadata.get("epochs", 80),
+        batch_size=metadata.get("batch_size", 128),
+        learning_rate=metadata.get("learning_rate", 1e-3),
+        hidden_sizes=hidden_sizes,
     )
     
     print(f"\n✓ Detector successfully loaded from {load_dir.resolve()}/")
