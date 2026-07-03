@@ -42,19 +42,19 @@ def save_detector(
     # Save the model weights
     model_path = save_dir / "model_weights.pth"
     torch.save(detector.model.state_dict(), model_path)
-    print(f"✓ Model weights saved to {model_path}")
+    #print(f"Model weights saved to {model_path}")
     
     # Save the scalers (for preprocessing)
     scalers_path = save_dir / "scalers.pkl"
     with open(scalers_path, "wb") as f:
         pickle.dump(detector.scalers, f)
-    print(f"✓ Scalers saved to {scalers_path}")
+    #print(f"Scalers saved to {scalers_path}")
     
     # Save the threshold config
     threshold_path = save_dir / "threshold.pkl"
     with open(threshold_path, "wb") as f:
         pickle.dump(detector.threshold, f)
-    print(f"✓ Threshold config saved to {threshold_path}")
+    #print(f"Threshold config saved to {threshold_path}")
     
     # Save other metadata
     metadata = {
@@ -71,9 +71,9 @@ def save_detector(
     metadata_path = save_dir / "metadata.pkl"
     with open(metadata_path, "wb") as f:
         pickle.dump(metadata, f)
-    print(f"✓ Metadata saved to {metadata_path}")
+    #print(f"Metadata saved to {metadata_path}")
     
-    print(f"\n✓ All files saved to {save_dir.resolve()}/")
+    print(f"\nAll files saved to {save_dir.resolve()}/")
 
 
 def load_detector(
@@ -99,19 +99,19 @@ def load_detector(
     metadata_path = load_dir / "metadata.pkl"
     with open(metadata_path, "rb") as f:
         metadata = pickle.load(f)
-    print(f"Metadata loaded from {metadata_path}")
+    #print(f"Metadata loaded from {metadata_path}")
     
     # Load scalers
     scalers_path = load_dir / "scalers.pkl"
     with open(scalers_path, "rb") as f:
         scalers: Scalers = pickle.load(f)
-    print(f"Scalers loaded from {scalers_path}")
+    #print(f"Scalers loaded from {scalers_path}")
     
     # Load threshold config
     threshold_path = load_dir / "threshold.pkl"
     with open(threshold_path, "rb") as f:
         threshold: ThresholdConfig = pickle.load(f)
-    print(f"Threshold config loaded from {threshold_path}")
+    #print(f"Threshold config loaded from {threshold_path}")
     
     torch_device = torch.device(device)
     input_dim = scalers.input_mean.shape[0]
@@ -130,7 +130,7 @@ def load_detector(
     # Load model weights
     model.load_state_dict(state_dict)
     model.to(torch_device)
-    print(f"✓ Model weights loaded from {model_path}")
+    #print(f"Model weights loaded from {model_path}")
     
     # Recreate EventDetector
     detector = EventDetector(
@@ -148,5 +148,5 @@ def load_detector(
         hidden_sizes=hidden_sizes,
     )
     
-    print(f"\n✓ Detector successfully loaded from {load_dir.resolve()}/")
+    print(f"\nDetector successfully loaded from {load_dir.resolve()}/")
     return detector
