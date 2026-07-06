@@ -85,7 +85,7 @@ def split_file(
 
 
 def collect_default_data_paths(data_dir: Path) -> list[Path]:
-    paths = sorted(data_dir.glob("scada_data_*.npz"))
+    paths = sorted(path for path in data_dir.glob("scada_data_*.npz") if "_no_cont" not in path.name)
     if not paths:
         raise FileNotFoundError(f"No SCADA files found in {data_dir}")
     return paths

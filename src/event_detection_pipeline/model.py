@@ -11,9 +11,10 @@ from .classes import Scalers
 class WaterQualityANN(nn.Module):
     def __init__(self, input_dim: int, output_dim: int, hidden_sizes: Sequence[int] = (128, 64)) -> None:
         super().__init__()
+        self.hidden_sizes = tuple(hidden_sizes)
         layers: list[nn.Module] = []
         last_dim = input_dim
-        for hidden_size in hidden_sizes:
+        for hidden_size in self.hidden_sizes:
             layers.append(nn.Linear(last_dim, hidden_size))
             #Gaussian Error Linear Unit
             layers.append(nn.GELU())
