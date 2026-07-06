@@ -53,20 +53,12 @@ class DetectionResult:
          self.predicted = predicted
          self.actual = actual
 
-    def _event_intensity(self) -> np.ndarray:
-        event_values = np.asarray(self.actual, dtype=float)
-        if event_values.ndim == 1:
-            return event_values
-        return np.max(event_values, axis=1)
-
-    def _event_peak_time(self) -> float:
+    def _event_start_time(self) -> float:
         event_mask = np.asarray(self.event_flags, dtype=bool)
         if not np.any(event_mask):
             return float("nan")
-
-        event_intensity = self._event_intensity()
-        peak_index = int(np.argmax(event_intensity[event_mask]))
-        return float(np.asarray(self.times, dtype=float)[event_mask][peak_index])
+        first_event_index = int(np.argmax(event_mask))
+        return float(np.asarray(self.times, dtype=float)[first_event_index])
 
     def _first_alarm_time(self) -> float:
         if not np.any(self.alarms):
@@ -90,12 +82,12 @@ class DetectionResult:
         #accuracy
         accuracy = (true_positives + true_negatives) / len(self.alarms) if len(self.alarms) else 0.0
 
-        event_peak_time = self._event_peak_time()
+        event_start_time = self._event_start_time()
         first_alarm_time = self._first_alarm_time()
-        if np.isnan(event_peak_time) or np.isnan(first_alarm_time):
+        if np.isnan(event_start_time) or np.isnan(first_alarm_time):
             detection_latency_seconds = float("nan")
         else:
-            detection_latency_seconds = first_alarm_time - event_peak_time
+            detection_latency_seconds = first_alarm_time - event_start_time
 
         return {
             "precision": precision,
