@@ -47,8 +47,8 @@ def make_supervised_sequences(
     times: np.ndarray,
     event_flags: np.ndarray,
 ) -> DatasetSplit:
-    feature_columns = groups.chlorine + groups.flow + groups.arsenic
-    target_columns = groups.arsenic
+    feature_columns = groups.chlorine + groups.flow
+    target_columns = groups.chlorine
 
     inputs: list[np.ndarray] = []
     targets: list[np.ndarray] = []

@@ -106,4 +106,5 @@ def predict(model: WaterQualityANN, inputs: np.ndarray, device: torch.device) ->
 
 
 def residual_series(predicted: np.ndarray, actual: np.ndarray) -> np.ndarray:
-    return np.mean(actual - predicted, axis=1)
+    #return np.sqrt(np.mean((actual - predicted) ** 2, axis=1))
+    return np.abs(predicted - actual).mean(axis=1)
