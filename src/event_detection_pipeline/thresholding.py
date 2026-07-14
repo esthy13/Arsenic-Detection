@@ -11,26 +11,55 @@ def rolling_thresholds(
     outlier_upper: float,
     outlier_lower: float,
 ) -> tuple[np.ndarray, np.ndarray]:
+    """Calculate filtered rolling thresholds in linear time.
+
+    The previous implementation sliced every window and recomputed its mean and
+    standard deviation from scratch.  Cumulative counts, sums and squared sums
+    produce the same population statistics without the nested O(n * window)
+    work.  Float64 accumulators reduce cancellation before returning float32,
+    as expected by the rest of the pipeline.
+    """
+    residuals = np.asarray(residuals, dtype=np.float32).reshape(-1)
+    if residuals.size == 0:
+        return np.empty(0, dtype=np.float32), np.empty(0, dtype=np.float32)
+
     window_size = max(1, int(round(len(residuals) * window_fraction)))
-    upper = np.zeros(len(residuals), dtype=np.float32)
-    lower = np.zeros(len(residuals), dtype=np.float32)
+    window_size = min(window_size, len(residuals))
 
-    for index in range(window_size, len(residuals) + 1):
-        window = residuals[index - window_size : index]
-        filtered = window[(window <= outlier_upper) & (window >= outlier_lower)]
-        if len(filtered) == 0:
-            upper[:] = 0.0
-            lower[:] = 0.0
-            break
+    valid = (residuals <= outlier_upper) & (residuals >= outlier_lower)
+    values = np.where(valid, residuals, 0.0).astype(np.float64, copy=False)
 
-        mean_value = float(np.mean(filtered))
-        std_value = float(np.std(filtered))
-        upper[index - 1] = mean_value + upper_multiplier * std_value
-        lower[index - 1] = mean_value - lower_multiplier * std_value
+    cumulative_count = np.concatenate(([0], np.cumsum(valid, dtype=np.int64)))
+    cumulative_sum = np.concatenate(([0.0], np.cumsum(values, dtype=np.float64)))
+    cumulative_squared_sum = np.concatenate(
+        ([0.0], np.cumsum(values * values, dtype=np.float64))
+    )
 
-    if window_size < len(residuals):
-        upper[: window_size - 1] = upper[window_size - 1]
-        lower[: window_size - 1] = lower[window_size - 1]
+    counts = cumulative_count[window_size:] - cumulative_count[:-window_size]
+    if np.any(counts == 0):
+        # Preserve the previous implementation's behavior for an empty filtered
+        # window: all thresholds become zero.
+        zeros = np.zeros(len(residuals), dtype=np.float32)
+        return zeros, zeros.copy()
+
+    sums = cumulative_sum[window_size:] - cumulative_sum[:-window_size]
+    squared_sums = (
+        cumulative_squared_sum[window_size:]
+        - cumulative_squared_sum[:-window_size]
+    )
+    means = sums / counts
+    variances = np.maximum(squared_sums / counts - means * means, 0.0)
+    standard_deviations = np.sqrt(variances)
+
+    rolling_upper = means + upper_multiplier * standard_deviations
+    rolling_lower = means - lower_multiplier * standard_deviations
+    prefix_size = window_size - 1
+    upper = np.concatenate(
+        (np.full(prefix_size, rolling_upper[0]), rolling_upper)
+    ).astype(np.float32)
+    lower = np.concatenate(
+        (np.full(prefix_size, rolling_lower[0]), rolling_lower)
+    ).astype(np.float32)
 
     return upper, lower
 
@@ -89,50 +118,105 @@ def evaluate_threshold(
     true_negative = int(np.sum(~outliers & ~event_flags))
 
     sensitivity = true_positive / (true_positive + false_negative) if true_positive + false_negative else 0.0
-    specificity = true_negative / (true_negative + false_positive) if true_negative + false_positive else 0.0
     false_positive_rate = false_positive / (false_positive + true_negative) if false_positive + true_negative else 0.0
 
-    penalty = 1.0 if np.all(outliers == outliers[0]) else 0.0
-    objective = -(sensitivity + specificity) + penalty
+    # penalty = 1.0 if np.all(outliers == outliers[0]) else 0.0
+    # objective = -((true_positive + true_negative) / len(event_flags)) + penalty
+
+    specificity = true_negative / (true_negative + false_positive)
+    balanced_accuracy = 0.5 * (sensitivity + specificity)
+    objective = -balanced_accuracy
     return objective, sensitivity, false_positive_rate, upper, lower, outliers
+
+
+def _config_from_genes(genes: np.ndarray) -> ThresholdConfig:
+    return ThresholdConfig(
+        window_size_seconds=0.0,
+        window_fraction=float(genes[0]),
+        upper_multiplier=float(genes[1]),
+        lower_multiplier=float(genes[2]),
+        outlier_upper=float(genes[3]),
+        outlier_lower=-float(genes[4]),
+    )
+
+
+def _random_genes(rng: np.random.Generator) -> np.ndarray:
+    return np.asarray(
+        [
+            rng.uniform(0.03, 0.2),
+            rng.uniform(0.5, 4.0),
+            rng.uniform(0.5, 4.0),
+            rng.uniform(1.5, 5.0),
+            rng.uniform(1.5, 5.0),
+        ],
+        dtype=np.float32,
+    )
+
+
+def _clip_genes(genes: np.ndarray) -> np.ndarray:
+    bounds = np.asarray(
+        [
+            [0.03, 0.2],
+            [0.5, 4.0],
+            [0.5, 4.0],
+            [1.5, 5.0],
+            [1.5, 5.0],
+        ],
+        dtype=np.float32,
+    )
+    return np.clip(genes, bounds[:, 0], bounds[:, 1])
 
 
 def fit_threshold(
     residuals: np.ndarray,
     event_flags: np.ndarray,
+    *,
+    population_size: int = 24,
+    generations: int = 24,
+    elite_count: int = 6,
 ) -> tuple[ThresholdConfig, float, float, np.ndarray, np.ndarray]:
-    candidate_windows = (0.03, 0.05, 0.08, 0.1, 0.15)
-    candidate_multipliers = (0.5, 1.0, 1.5, 2.0)
-    candidate_filters = (1.5, 2.0, 3.0)
+    if population_size < 2:
+        raise ValueError("population_size must be at least 2")
+    if generations < 1:
+        raise ValueError("generations must be at least 1")
+    if not 1 <= elite_count <= population_size:
+        raise ValueError("elite_count must be between 1 and population_size")
 
+    rng = np.random.default_rng(42)
+
+    population = [_random_genes(rng) for _ in range(population_size)]
     best_objective = float("inf")
-    best_config = ThresholdConfig(window_size_seconds=0.0, window_fraction=0.05, 
-                                  upper_multiplier=1.0, lower_multiplier=1.0, 
-                                  outlier_upper=3.0, outlier_lower=-3.0)
+    best_config = _config_from_genes(population[0])
     best_tp = 0.0
     best_fp = 0.0
     best_upper = np.zeros_like(residuals)
     best_lower = np.zeros_like(residuals)
 
-    for window_fraction in candidate_windows:
-        for upper_multiplier in candidate_multipliers:
-            for lower_multiplier in candidate_multipliers:
-                for filter_scale in candidate_filters:
-                    config = ThresholdConfig(
-                        window_size_seconds=0.0,
-                        window_fraction=window_fraction,
-                        upper_multiplier=upper_multiplier,
-                        lower_multiplier=lower_multiplier,
-                        outlier_upper=filter_scale,
-                        outlier_lower=-filter_scale,
-                    )
-                    objective, sensitivity, false_positive_rate, upper, lower, _ = evaluate_threshold(residuals, event_flags, config)
-                    if objective < best_objective:
-                        best_objective = objective
-                        best_config = config
-                        best_tp = sensitivity
-                        best_fp = false_positive_rate
-                        best_upper = upper
-                        best_lower = lower
+    for _ in range(generations):
+        scored: list[tuple[float, np.ndarray, float, float, np.ndarray, np.ndarray]] = []
+        for genes in population:
+            config = _config_from_genes(genes)
+            objective, sensitivity, false_positive_rate, upper, lower, _ = evaluate_threshold(residuals, event_flags, config)
+            scored.append((objective, genes, sensitivity, false_positive_rate, upper, lower))
+            if objective < best_objective:
+                best_objective = objective
+                best_config = config
+                best_tp = sensitivity
+                best_fp = false_positive_rate
+                best_upper = upper
+                best_lower = lower
+
+        scored.sort(key=lambda item: item[0])
+        elites = [genes for _, genes, _, _, _, _ in scored[:elite_count]]
+        next_population = elites.copy()
+
+        while len(next_population) < population_size:
+            parent_a, parent_b = rng.choice(elites, size=2, replace=True)
+            crossover_mask = rng.random(parent_a.shape) < 0.5
+            child = np.where(crossover_mask, parent_a, parent_b)
+            mutation = rng.normal(0.0, [0.02, 0.35, 0.35, 0.35, 0.35], size=child.shape)
+            next_population.append(_clip_genes(child + mutation))
+
+        population = next_population
 
     return best_config, best_tp, best_fp, best_upper, best_lower

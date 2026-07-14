@@ -11,6 +11,9 @@ from sklearn.metrics import (
     roc_auc_score,
     precision_recall_curve,
     average_precision_score,
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
 )
 from .classes import DetectionResult
 
@@ -110,7 +113,10 @@ def plot_roc_curve_chlorine_prediction(
     ax=None,
 ) -> tuple:
     """
-    Plot ROC curve for chlorine prediction by comparing predicted vs actual.
+    Plot contamination ROC using chlorine prediction residuals as anomaly scores.
+
+    This does not measure chlorine regression accuracy. A strong predictor may
+    also predict event-period chlorine well, producing an AUC near 0.5.
 
     Args:
         result: DetectionResult object
@@ -159,6 +165,42 @@ def plot_roc_curve_chlorine_prediction(
     ax.grid(alpha=0.3)
 
     return fpr, tpr, roc_auc, fig, ax
+
+
+def plot_chlorine_prediction_quality(
+    result: DetectionResult,
+    chlorine_indices: list[int] | None = None,
+    title: str = "Chlorine prediction quality",
+    figsize: tuple = (8, 6),
+    ax=None,
+) -> tuple:
+    """Plot predicted versus observed chlorine and report regression metrics."""
+    if chlorine_indices is None:
+        chlorine_indices = list(range(result.actual.shape[1]))
+    actual = result.actual[:, chlorine_indices].reshape(-1)
+    predicted = result.predicted[:, chlorine_indices].reshape(-1)
+    r2 = float(r2_score(actual, predicted))
+    rmse = float(np.sqrt(mean_squared_error(actual, predicted)))
+    mae = float(mean_absolute_error(actual, predicted))
+
+    fig, ax = _get_fig_ax(ax=ax, figsize=figsize)
+    ax.scatter(actual, predicted, s=8, alpha=0.25, color="teal")
+    lower = float(min(actual.min(), predicted.min()))
+    upper = float(max(actual.max(), predicted.max()))
+    ax.plot([lower, upper], [lower, upper], "--", color="black", lw=1.5,
+            label="Perfect prediction")
+    ax.set_xlabel("Observed chlorine")
+    ax.set_ylabel("Predicted chlorine")
+    ax.set_title(title)
+    ax.text(
+        0.03, 0.97,
+        f"R² = {r2:.3f}\nRMSE = {rmse:.4f}\nMAE = {mae:.4f}",
+        transform=ax.transAxes, va="top",
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
+    )
+    ax.legend(loc="lower right")
+    ax.grid(alpha=0.3)
+    return r2, rmse, mae, fig, ax
 
 
 def plot_precision_recall_curve(
