@@ -151,7 +151,7 @@ def collect_default_data_paths(data_dir: Path) -> list[Path]:
         return int(suffix) if suffix.isdigit() else -1
 
     paths = sorted(
-        (path for path in data_dir.glob("scada_data_*.npz") if "_no_cont" not in path.name),
+        (path for path in data_dir.glob("scada_data_*.npz") if "_no_cont" and "_strong_cont" not in path.name),
         key=numeric_suffix,
     )
     if not paths:
