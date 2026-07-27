@@ -1,10 +1,13 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
 
 from src.event_detection_pipeline.classes import SensorGroups
 from src.event_detection_pipeline.data import (
     arsenic_arrival_flags,
+    collect_default_data_paths,
     event_flags_from_time,
     make_supervised_sequences,
 )
@@ -34,6 +37,24 @@ class DataPipelineTests(unittest.TestCase):
         np.testing.assert_array_equal(
             flags,
             [[False, False], [True, False], [False, True], [False, False]],
+        )
+
+    def test_default_paths_exclude_control_and_strong_scenarios(self) -> None:
+        with TemporaryDirectory() as directory:
+            data_dir = Path(directory)
+            for filename in (
+                "scada_data_1.npz",
+                "scada_data_2.npz",
+                "scada_data_no_cont1.npz",
+                "scada_data_strong_cont1.npz",
+            ):
+                (data_dir / filename).touch()
+
+            paths = collect_default_data_paths(data_dir)
+
+        self.assertEqual(
+            [path.name for path in paths],
+            ["scada_data_1.npz", "scada_data_2.npz"],
         )
 
     def test_sequences_use_flows_target_history_and_daily_time(self) -> None:
