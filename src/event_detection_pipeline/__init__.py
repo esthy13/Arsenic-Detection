@@ -14,6 +14,7 @@ from .evaluation import (
     plot_evaluation_metrics,
     get_evaluation_summary,
 )
+from .grasp import GraspConfig, GraspResult, grasp_architecture_search, parameter_count
 
 __all__ = [
     "DEFAULT_EVENT_END_SECONDS",
@@ -39,4 +40,8 @@ __all__ = [
     "plot_precision_recall_curve",
     "plot_evaluation_metrics",
     "get_evaluation_summary",
+    "GraspConfig",
+    "GraspResult",
+    "grasp_architecture_search",
+    "parameter_count",
 ]

@@ -85,8 +85,9 @@ def save_detector(
         "early_stopping_patience": detector.early_stopping_patience,
         "classifier_input_mean": detector.classifier_input_mean,
         "classifier_input_std": detector.classifier_input_std,
-        "classifier_hidden_sizes": (128, 64),
-        "classifier_dropout": 0.1,
+        "classifier_hidden_sizes": detector.classifier_hidden_sizes,
+        "classifier_dropout": detector.classifier_dropout,
+        "grasp_report": detector.grasp_report,
     }
     metadata_path = save_dir / "metadata.pkl"
     with open(metadata_path, "wb") as f:
@@ -196,6 +197,9 @@ def load_detector(
         event_classifier=event_classifier,
         classifier_input_mean=metadata.get("classifier_input_mean"),
         classifier_input_std=metadata.get("classifier_input_std"),
+        classifier_hidden_sizes=metadata.get("classifier_hidden_sizes", (128, 64)),
+        classifier_dropout=metadata.get("classifier_dropout", 0.1),
+        grasp_report=metadata.get("grasp_report"),
     )
     
     print(f"\nDetector successfully loaded from {load_dir.resolve()}/")

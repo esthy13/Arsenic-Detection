@@ -32,6 +32,7 @@ from .model import (
     train_event_classifier,
     predict_event_probability,
 )
+from .grasp import GraspConfig, grasp_architecture_search, parameter_count
 from .thresholding import bayesian_event_probability, fit_threshold, rolling_thresholds
 from .classes import DatasetSplit, DetectionResult, Scalers, SensorGroups, ThresholdConfig
 
@@ -50,7 +51,10 @@ class EventDetector:
                  early_stopping_patience: int = 12,
                  event_classifier: EventClassificationANN | None = None,
                  classifier_input_mean: np.ndarray | None = None,
-                 classifier_input_std: np.ndarray | None = None):
+                 classifier_input_std: np.ndarray | None = None,
+                 classifier_hidden_sizes: Sequence[int] = (128, 64),
+                 classifier_dropout: float = 0.1,
+                 grasp_report: dict[str, object] | None = None):
         self.models = list(models)
         self.target_scalers = list(scalers)
         self.thresholds = list(thresholds)
@@ -82,6 +86,9 @@ class EventDetector:
         self.event_classifier = event_classifier
         self.classifier_input_mean = classifier_input_mean
         self.classifier_input_std = classifier_input_std
+        self.classifier_hidden_sizes = tuple(classifier_hidden_sizes)
+        self.classifier_dropout = classifier_dropout
+        self.grasp_report = grasp_report
 
     def prediction_confusion_matrix( self, path: Path, event_start_seconds: 
         float = DEFAULT_EVENT_START_SECONDS, event_end_seconds: 
@@ -398,6 +405,14 @@ def build_detector(
     dropout: float = 0.1,
     weight_decay: float = 1e-4,
     early_stopping_patience: int = 12,
+    classifier_hidden_sizes: Sequence[int] = (128, 64),
+    classifier_learning_rate: float = 3e-4,
+    classifier_batch_size: int = 256,
+    classifier_epochs: int = 100,
+    classifier_dropout: float = 0.1,
+    classifier_weight_decay: float = 1e-4,
+    classifier_patience: int = 10,
+    grasp_config: GraspConfig | None = None,
 ) -> EventDetector:
     device = select_device()
     np.random.seed(random_seed)
@@ -472,20 +487,104 @@ def build_detector(
     scaled_classifier_validation_inputs = (
         classifier_validation_inputs - classifier_input_mean
     ) / classifier_input_std
-    event_classifier = train_event_classifier(
-        scaled_classifier_train_inputs,
-        classifier_train_flags,
-        scaled_classifier_validation_inputs,
-        classifier_validation_flags,
-        device,
-        hidden_sizes=(128, 64),
-        learning_rate=3e-4,
-        batch_size=256,
-        epochs=100,
-        dropout=0.1,
-        weight_decay=1e-4,
-        patience=10,
-    )
+    classifier_models: dict[tuple[int, ...], EventClassificationANN] = {}
+    classifier_metrics: dict[tuple[int, ...], dict[str, float]] = {}
+
+    def evaluate_classifier(hidden_architecture: tuple[int, ...]) -> float:
+        architecture = tuple(hidden_architecture)
+        # Make stochastic training repeatable for each architecture, independent
+        # of the order in which GRASP visits candidates.
+        architecture_seed = random_seed + sum(
+            (index + 1) * width for index, width in enumerate(architecture)
+        )
+        np.random.seed(architecture_seed)
+        torch.manual_seed(architecture_seed)
+        model = train_event_classifier(
+            scaled_classifier_train_inputs,
+            classifier_train_flags,
+            scaled_classifier_validation_inputs,
+            classifier_validation_flags,
+            device,
+            hidden_sizes=architecture,
+            learning_rate=classifier_learning_rate,
+            batch_size=classifier_batch_size,
+            epochs=classifier_epochs,
+            dropout=classifier_dropout,
+            weight_decay=classifier_weight_decay,
+            patience=classifier_patience,
+        )
+        probability = predict_event_probability(
+            model, scaled_classifier_validation_inputs, device
+        )
+        cutoff = _calibrate_balanced_accuracy_threshold(
+            classifier_validation_flags, probability
+        )
+        alarms = probability >= cutoff
+        positives = classifier_validation_flags.astype(bool)
+        sensitivity = float(np.mean(alarms[positives])) if np.any(positives) else 0.0
+        specificity = (
+            float(np.mean(~alarms[~positives])) if np.any(~positives) else 0.0
+        )
+        architecture_metrics = {
+            "balanced_accuracy": 0.5 * (sensitivity + specificity),
+            "recall": sensitivity,
+            "false_alarm_rate": 1.0 - specificity,
+            "alarm_threshold": float(cutoff),
+        }
+        classifier_models[architecture] = model
+        classifier_metrics[architecture] = architecture_metrics
+        return architecture_metrics["balanced_accuracy"]
+
+    grasp_report: dict[str, object] | None = None
+    selected_classifier_hidden_sizes = tuple(classifier_hidden_sizes)
+    if grasp_config is not None:
+        search_result = grasp_architecture_search(
+            evaluate_classifier,
+            input_dim=scaled_classifier_train_inputs.shape[1],
+            baseline_hidden_sizes=classifier_hidden_sizes,
+            config=grasp_config,
+        )
+        selected_classifier_hidden_sizes = search_result.hidden_sizes
+        baseline_metrics = classifier_metrics[tuple(classifier_hidden_sizes)]
+        selected_metrics = classifier_metrics[selected_classifier_hidden_sizes]
+        grasp_report = {
+            "baseline": {
+                "hidden_sizes": list(classifier_hidden_sizes),
+                "parameter_count": parameter_count(
+                    scaled_classifier_train_inputs.shape[1],
+                    classifier_hidden_sizes,
+                ),
+                **baseline_metrics,
+            },
+            "selected": {
+                "hidden_sizes": list(selected_classifier_hidden_sizes),
+                "parameter_count": search_result.parameter_count,
+                **selected_metrics,
+            },
+            "evaluations": search_result.evaluations,
+            "random_seed": random_seed,
+            "search_budget": {
+                "iterations": grasp_config.iterations,
+                "max_evaluations": grasp_config.max_evaluations,
+                "elite_size": grasp_config.elite_size,
+                "relink_solutions": grasp_config.relink_solutions,
+                "min_hidden_size": grasp_config.min_hidden_size,
+                "alpha": grasp_config.alpha,
+                "metric_tolerance": grasp_config.metric_tolerance,
+                "search_random_seed": grasp_config.random_seed,
+            },
+            "classifier_training": {
+                "learning_rate": classifier_learning_rate,
+                "batch_size": classifier_batch_size,
+                "epochs": classifier_epochs,
+                "dropout": classifier_dropout,
+                "weight_decay": classifier_weight_decay,
+                "patience": classifier_patience,
+            },
+        }
+    else:
+        evaluate_classifier(selected_classifier_hidden_sizes)
+    event_classifier = classifier_models[selected_classifier_hidden_sizes]
     models, scalers = _train_all_targets(
         train_inputs,
         train_targets,
@@ -543,6 +642,9 @@ def build_detector(
         event_classifier=event_classifier,
         classifier_input_mean=classifier_input_mean,
         classifier_input_std=classifier_input_std,
+        classifier_hidden_sizes=selected_classifier_hidden_sizes,
+        classifier_dropout=classifier_dropout,
+        grasp_report=grasp_report,
     )
     validation_results = [
         detector.detect(
