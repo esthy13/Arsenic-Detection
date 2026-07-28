@@ -13,6 +13,8 @@ from .evaluation import (
     plot_precision_recall_curve,
     plot_evaluation_metrics,
     get_evaluation_summary,
+    get_chlorine_regression_summary,
+    aggregate_evaluation_summary,
 )
 from .grasp import GraspConfig, GraspResult, grasp_architecture_search, parameter_count
 
@@ -41,6 +43,8 @@ __all__ = [
     "plot_precision_recall_curve",
     "plot_evaluation_metrics",
     "get_evaluation_summary",
+    "get_chlorine_regression_summary",
+    "aggregate_evaluation_summary",
     "GraspConfig",
     "GraspResult",
     "grasp_architecture_search",

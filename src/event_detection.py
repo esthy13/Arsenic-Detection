@@ -16,6 +16,7 @@ from src.event_detection_pipeline import (
     ThresholdConfig,
     WaterQualityANN,
     GraspConfig,
+    aggregate_evaluation_summary,
     build_detector,
     collect_default_data_paths,
     collect_strong_contamination_paths,
@@ -23,6 +24,7 @@ from src.event_detection_pipeline import (
     main,
     run_pipeline,
     split_train_test,
+    get_chlorine_regression_summary,
 )
 
 __all__ = [
@@ -36,6 +38,8 @@ __all__ = [
     "DetectionResult",
     "WaterQualityANN",
     "GraspConfig",
+    "aggregate_evaluation_summary",
+    "get_chlorine_regression_summary",
     "EventDetector",
     "build_detector",
     "run_pipeline",
