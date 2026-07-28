@@ -163,6 +163,23 @@ def collect_default_data_paths(data_dir: Path) -> list[Path]:
         raise FileNotFoundError(f"No SCADA files found in {data_dir}")
     return paths
 
+def collect_strong_contamination_paths(data_dir: Path) -> list[Path]:
+    def numeric_suffix(path: Path) -> int:
+        suffix = path.stem.rsplit("_", 1)[-1]
+        return int(suffix) if suffix.isdigit() else -1
+
+    paths = sorted(
+        (
+            path
+            for path in data_dir.glob("scada_data_*.npz")
+            if "_strong_cont" in path.name
+        ),
+        key=numeric_suffix,
+    )
+    if not paths:
+        raise FileNotFoundError(f"No SCADA files found in {data_dir}")
+    return paths
+
 
 def split_train_test(paths: Sequence[Path], train_fraction: float = 0.8) -> tuple[list[Path], list[Path]]:
     split_index = max(1, int(round(len(paths) * train_fraction)))
