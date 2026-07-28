@@ -2,7 +2,9 @@ import unittest
 
 from src.event_detection_pipeline.grasp import (
     GraspConfig,
+    SensorGraspConfig,
     grasp_architecture_search,
+    grasp_sensor_subset_search,
     parameter_count,
 )
 
@@ -47,6 +49,38 @@ class GraspArchitectureSearchTests(unittest.TestCase):
             config=GraspConfig(iterations=2, max_evaluations=3),
         )
         self.assertEqual(result.hidden_sizes, baseline)
+
+    def test_sensor_grasp_finds_bounded_high_scoring_subset(self) -> None:
+        calls: list[tuple[int, ...]] = []
+
+        def evaluator(indices: tuple[int, ...]) -> float:
+            calls.append(indices)
+            score = sum({1: 0.5, 3: 0.3, 4: 0.2}.get(index, 0.0) for index in indices)
+            return score
+
+        result = grasp_sensor_subset_search(
+            evaluator,
+            sensor_count=6,
+            max_sensors=2,
+            config=SensorGraspConfig(
+                iterations=6,
+                max_evaluations=30,
+                random_seed=4,
+            ),
+        )
+
+        self.assertEqual(result.sensor_indices, (1, 3))
+        self.assertLessEqual(len(result.sensor_indices), 2)
+        self.assertLessEqual(result.evaluations, 30)
+        self.assertEqual(len(calls), len(set(calls)))
+
+    def test_sensor_grasp_rejects_budget_above_sensor_count(self) -> None:
+        with self.assertRaises(ValueError):
+            grasp_sensor_subset_search(
+                lambda indices: 0.0,
+                sensor_count=3,
+                max_sensors=4,
+            )
 
 
 if __name__ == "__main__":

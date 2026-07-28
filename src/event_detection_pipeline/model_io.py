@@ -87,6 +87,7 @@ def save_detector(
         "classifier_input_std": detector.classifier_input_std,
         "classifier_hidden_sizes": detector.classifier_hidden_sizes,
         "classifier_dropout": detector.classifier_dropout,
+        "chlorine_sensor_indices": detector.chlorine_sensor_indices,
         "grasp_report": detector.grasp_report,
     }
     metadata_path = save_dir / "metadata.pkl"
@@ -199,6 +200,7 @@ def load_detector(
         classifier_input_std=metadata.get("classifier_input_std"),
         classifier_hidden_sizes=metadata.get("classifier_hidden_sizes", (128, 64)),
         classifier_dropout=metadata.get("classifier_dropout", 0.1),
+        chlorine_sensor_indices=metadata.get("chlorine_sensor_indices"),
         grasp_report=metadata.get("grasp_report"),
     )
     

@@ -16,7 +16,15 @@ from .evaluation import (
     get_chlorine_regression_summary,
     aggregate_evaluation_summary,
 )
-from .grasp import GraspConfig, GraspResult, grasp_architecture_search, parameter_count
+from .grasp import (
+    GraspConfig,
+    GraspResult,
+    SensorGraspConfig,
+    SensorGraspResult,
+    grasp_architecture_search,
+    grasp_sensor_subset_search,
+    parameter_count,
+)
 
 __all__ = [
     "DEFAULT_EVENT_END_SECONDS",
@@ -47,6 +55,9 @@ __all__ = [
     "aggregate_evaluation_summary",
     "GraspConfig",
     "GraspResult",
+    "SensorGraspConfig",
+    "SensorGraspResult",
     "grasp_architecture_search",
+    "grasp_sensor_subset_search",
     "parameter_count",
 ]

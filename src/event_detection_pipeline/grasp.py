@@ -1,4 +1,4 @@
-"""GRASP with path relinking for ANN hidden-layer architecture selection."""
+"""GRASP with path relinking for ANN architecture and sensor selection."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ import numpy as np
 
 Architecture = tuple[int, ...]
 MetricEvaluator = Callable[[Architecture], float]
+SensorSubset = tuple[int, ...]
+SensorSubsetEvaluator = Callable[[SensorSubset], float]
 
 
 @dataclass(frozen=True)
@@ -49,6 +51,38 @@ class GraspResult:
     parameter_count: int
     evaluations: int
     elite: tuple[ArchitectureScore, ...]
+
+
+@dataclass(frozen=True)
+class SensorGraspConfig:
+    iterations: int = 8
+    max_evaluations: int = 40
+    elite_size: int = 6
+    relink_solutions: int = 2
+    alpha: float = 0.3
+    random_seed: int = 42
+
+    def __post_init__(self) -> None:
+        if self.iterations < 1 or self.max_evaluations < 1:
+            raise ValueError("iterations and max_evaluations must be positive")
+        if self.elite_size < 1 or self.relink_solutions < 0:
+            raise ValueError("elite_size must be positive and relink_solutions non-negative")
+        if not 0.0 <= self.alpha <= 1.0:
+            raise ValueError("alpha must be between zero and one")
+
+
+@dataclass(frozen=True)
+class SensorSubsetScore:
+    sensor_indices: SensorSubset
+    metric: float
+
+
+@dataclass(frozen=True)
+class SensorGraspResult:
+    sensor_indices: SensorSubset
+    metric: float
+    evaluations: int
+    elite: tuple[SensorSubsetScore, ...]
 
 
 def parameter_count(
@@ -237,6 +271,173 @@ def grasp_architecture_search(
         metric=best.metric,
         baseline_metric=baseline_metric,
         parameter_count=best.parameter_count,
+        evaluations=len(cache),
+        elite=tuple(elite),
+    )
+
+
+def grasp_sensor_subset_search(
+    evaluator: SensorSubsetEvaluator,
+    *,
+    sensor_count: int,
+    max_sensors: int,
+    config: SensorGraspConfig = SensorGraspConfig(),
+) -> SensorGraspResult:
+    """Maximize validation performance using at most ``max_sensors`` sensors."""
+    if sensor_count < 1:
+        raise ValueError("sensor_count must be positive")
+    if not 1 <= max_sensors <= sensor_count:
+        raise ValueError("max_sensors must be between one and sensor_count")
+
+    rng = np.random.default_rng(config.random_seed)
+    cache: dict[SensorSubset, SensorSubsetScore] = {}
+    elite: list[SensorSubsetScore] = []
+
+    def score(indices: Sequence[int]) -> SensorSubsetScore | None:
+        subset = tuple(sorted(int(index) for index in indices))
+        if (
+            not subset
+            or len(subset) > max_sensors
+            or len(set(subset)) != len(subset)
+            or subset[0] < 0
+            or subset[-1] >= sensor_count
+        ):
+            raise ValueError("Invalid sensor subset")
+        if subset in cache:
+            return cache[subset]
+        if len(cache) >= config.max_evaluations:
+            return None
+        result = SensorSubsetScore(subset, float(evaluator(subset)))
+        cache[subset] = result
+        return result
+
+    def ranking(item: SensorSubsetScore) -> tuple[float, int, SensorSubset]:
+        return (-item.metric, len(item.sensor_indices), item.sensor_indices)
+
+    def update_elite(candidate: SensorSubsetScore | None) -> None:
+        if candidate is None:
+            return
+        by_subset = {item.sensor_indices: item for item in elite}
+        by_subset[candidate.sensor_indices] = candidate
+        elite[:] = sorted(by_subset.values(), key=ranking)[: config.elite_size]
+
+    def choose_rcl(candidates: list[SensorSubsetScore]) -> SensorSubsetScore:
+        metrics = np.asarray([candidate.metric for candidate in candidates])
+        cutoff = metrics.max() - config.alpha * (metrics.max() - metrics.min())
+        restricted = [
+            candidate
+            for candidate in candidates
+            if candidate.metric >= cutoff
+        ]
+        return restricted[int(rng.integers(len(restricted)))]
+
+    def construct() -> SensorSubsetScore | None:
+        singleton_candidates = [
+            candidate
+            for index in rng.permutation(sensor_count)
+            if (candidate := score((int(index),))) is not None
+        ]
+        if not singleton_candidates:
+            return None
+        current = choose_rcl(singleton_candidates)
+        best = current
+        while len(current.sensor_indices) < max_sensors:
+            additions = [
+                candidate
+                for index in rng.permutation(sensor_count)
+                if index not in current.sensor_indices
+                and (
+                    candidate := score((*current.sensor_indices, int(index)))
+                )
+                is not None
+            ]
+            if not additions:
+                break
+            current = choose_rcl(additions)
+            if ranking(current) < ranking(best):
+                best = current
+        return best
+
+    def local_search(candidate: SensorSubsetScore) -> SensorSubsetScore:
+        best = candidate
+        while True:
+            neighbors: list[SensorSubsetScore] = []
+            subset = set(best.sensor_indices)
+            if len(subset) > 1:
+                for removed in subset:
+                    result = score(subset - {removed})
+                    if result is not None:
+                        neighbors.append(result)
+            for removed in subset:
+                for added in set(range(sensor_count)) - subset:
+                    result = score((subset - {removed}) | {added})
+                    if result is not None:
+                        neighbors.append(result)
+            if len(subset) < max_sensors:
+                for added in set(range(sensor_count)) - subset:
+                    result = score(subset | {added})
+                    if result is not None:
+                        neighbors.append(result)
+            if not neighbors:
+                return best
+            winner = min([best, *neighbors], key=ranking)
+            if winner.sensor_indices == best.sensor_indices:
+                return best
+            best = winner
+
+    def path_relink(
+        start: SensorSubsetScore, guide: SensorSubsetScore
+    ) -> SensorSubsetScore:
+        current = set(start.sensor_indices)
+        target = set(guide.sensor_indices)
+        best = start
+        while current != target:
+            moves: list[SensorSubsetScore] = []
+            for removed in current - target:
+                moved = current - {removed}
+                if moved:
+                    result = score(moved)
+                    if result is not None:
+                        moves.append(result)
+            for added in target - current:
+                moved = current | {added}
+                if len(moved) <= max_sensors:
+                    result = score(moved)
+                    if result is not None:
+                        moves.append(result)
+            if not moves:
+                break
+            next_score = min(moves, key=ranking)
+            current = set(next_score.sensor_indices)
+            if ranking(next_score) < ranking(best):
+                best = next_score
+        return local_search(best)
+
+    for iteration in range(config.iterations):
+        if len(cache) >= config.max_evaluations:
+            break
+        candidate = construct()
+        if candidate is None:
+            break
+        candidate = local_search(candidate)
+        if iteration and elite:
+            guide_indices = rng.choice(
+                len(elite),
+                size=min(config.relink_solutions, len(elite)),
+                replace=False,
+            )
+            for guide_index in np.atleast_1d(guide_indices):
+                update_elite(path_relink(candidate, elite[int(guide_index)]))
+        update_elite(candidate)
+
+    if not elite:
+        if not cache:
+            raise RuntimeError("Sensor GRASP could not evaluate any subset")
+        elite = [min(cache.values(), key=ranking)]
+    best = min(elite, key=ranking)
+    return SensorGraspResult(
+        sensor_indices=best.sensor_indices,
+        metric=best.metric,
         evaluations=len(cache),
         elite=tuple(elite),
     )

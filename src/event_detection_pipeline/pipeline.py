@@ -54,6 +54,7 @@ class EventDetector:
                  classifier_input_std: np.ndarray | None = None,
                  classifier_hidden_sizes: Sequence[int] = (128, 64),
                  classifier_dropout: float = 0.1,
+                 chlorine_sensor_indices: Sequence[int] | None = None,
                  grasp_report: dict[str, object] | None = None):
         self.models = list(models)
         self.target_scalers = list(scalers)
@@ -88,6 +89,11 @@ class EventDetector:
         self.classifier_input_std = classifier_input_std
         self.classifier_hidden_sizes = tuple(classifier_hidden_sizes)
         self.classifier_dropout = classifier_dropout
+        self.chlorine_sensor_indices = (
+            None
+            if chlorine_sensor_indices is None
+            else np.asarray(chlorine_sensor_indices, dtype=int)
+        )
         self.grasp_report = grasp_report
 
     def prediction_confusion_matrix( self, path: Path, event_start_seconds: 
@@ -119,6 +125,7 @@ class EventDetector:
             label_mode=self.label_mode,
             arsenic_threshold=self.arsenic_threshold,
         )
+        split = _select_chlorine_sensors(split, self.chlorine_sensor_indices)
         predictions = _predict_all_targets(self.models, self.target_scalers, split.inputs, split.targets, self.device)
         residuals = residual_series(predictions, split.targets)
         upper, lower, parameter_probabilities = _score_all_targets(
@@ -375,6 +382,46 @@ def _classification_features(
     ).astype(np.float32)
 
 
+def _select_chlorine_sensors(
+    split: DatasetSplit,
+    chlorine_sensor_indices: Sequence[int] | None,
+) -> DatasetSplit:
+    """Restrict all target-dependent inputs and outputs to deployed sensors."""
+    if chlorine_sensor_indices is None:
+        return split
+    indices = np.asarray(chlorine_sensor_indices, dtype=int)
+    if indices.ndim != 1 or indices.size == 0:
+        raise ValueError("chlorine_sensor_indices must contain at least one index")
+    if len(np.unique(indices)) != len(indices):
+        raise ValueError("chlorine_sensor_indices must not contain duplicates")
+    if np.any(indices < 0) or np.any(indices >= split.targets.shape[1]):
+        raise ValueError("chlorine_sensor_indices contains an out-of-range index")
+    return DatasetSplit(
+        inputs=split.inputs[:, indices, :],
+        targets=split.targets[:, indices],
+        flags=split.flags,
+        times=split.times,
+        target_flags=split.target_flags[:, indices],
+    )
+
+
+def _active_target_indices(
+    event_flags: np.ndarray,
+    target_count: int,
+    *,
+    has_event_classifier: bool,
+) -> np.ndarray:
+    """Choose residual targets without rejecting valid classifier-only subsets."""
+    indices = np.flatnonzero(np.any(event_flags, axis=0))
+    if indices.size:
+        return indices
+    if has_event_classifier:
+        return np.arange(target_count, dtype=int)
+    raise ValueError(
+        "No arsenic arrivals exceed the configured threshold in validation"
+    )
+
+
 def _split_train_validation_paths(
     paths: Sequence[Path], validation_fraction: float, seed: int
 ) -> tuple[list[Path], list[Path]]:
@@ -412,6 +459,7 @@ def build_detector(
     classifier_dropout: float = 0.1,
     classifier_weight_decay: float = 1e-4,
     classifier_patience: int = 10,
+    chlorine_sensor_indices: Sequence[int] | None = None,
     grasp_config: GraspConfig | None = None,
 ) -> EventDetector:
     device = select_device()
@@ -434,7 +482,9 @@ def build_detector(
             arsenic_threshold=arsenic_threshold,
         )
         groups = inferred_groups
-        train_splits.append(split)
+        train_splits.append(
+            _select_chlorine_sensors(split, chlorine_sensor_indices)
+        )
 
     if groups is None:
         raise ValueError("No training files were supplied")
@@ -450,7 +500,9 @@ def build_detector(
         )
         if inferred_groups.chlorine_nodes != groups.chlorine_nodes:
             raise ValueError("Sensor layouts differ between training scenarios")
-        validation_splits.append(split)
+        validation_splits.append(
+            _select_chlorine_sensors(split, chlorine_sensor_indices)
+        )
 
     train_inputs = np.concatenate([split.inputs for split in train_splits], axis=0)
     train_targets = np.concatenate([split.targets for split in train_splits], axis=0)
@@ -612,11 +664,14 @@ def build_detector(
     residuals = residual_series(predictions, all_event_targets)
 
     thresholds, true_positive_rates, false_positive_rates = _fit_all_thresholds(residuals, all_event_flags)
-    active_target_indices = np.flatnonzero(np.any(all_event_flags, axis=0))
-    if active_target_indices.size == 0:
-        raise ValueError(
-            "No arsenic arrivals exceed the configured threshold in validation"
-        )
+    # A subset can contain no chlorine node co-located with an arsenic arrival
+    # in this fold. Classifier labels remain global, so all selected targets are
+    # a safe residual-fusion fallback when the event classifier is present.
+    active_target_indices = _active_target_indices(
+        all_event_flags,
+        len(models),
+        has_event_classifier=event_classifier is not None,
+    )
 
     detector = EventDetector(
         models=models,
@@ -644,6 +699,7 @@ def build_detector(
         classifier_input_std=classifier_input_std,
         classifier_hidden_sizes=selected_classifier_hidden_sizes,
         classifier_dropout=classifier_dropout,
+        chlorine_sensor_indices=chlorine_sensor_indices,
         grasp_report=grasp_report,
     )
     validation_results = [

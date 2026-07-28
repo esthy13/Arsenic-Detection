@@ -14,8 +14,10 @@ from src.event_detection_pipeline.data import (
 from src.event_detection_pipeline.pipeline import (
     _calibrate_alarm_threshold,
     _calibrate_balanced_accuracy_threshold,
+    _active_target_indices,
     _classification_features,
     _fuse_probabilities,
+    _select_chlorine_sensors,
 )
 
 
@@ -111,6 +113,49 @@ class DataPipelineTests(unittest.TestCase):
         cutoff = _calibrate_balanced_accuracy_threshold(flags, probability)
         self.assertGreater(cutoff, 0.2)
         self.assertLessEqual(cutoff, 0.8)
+
+    def test_chlorine_sensor_selection_restricts_inputs_and_targets(self) -> None:
+        readings = np.arange(48, dtype=np.float32).reshape(8, 6)
+        times = np.arange(8, dtype=np.float32) * 1800
+        split = make_supervised_sequences(
+            readings, self.groups, 3, times, np.zeros((8, 2), dtype=bool)
+        )
+
+        selected = _select_chlorine_sensors(split, [1])
+
+        self.assertEqual(selected.inputs.shape, (5, 1, 7))
+        self.assertEqual(selected.targets.shape, (5, 1))
+        self.assertEqual(selected.target_flags.shape, (5, 1))
+        np.testing.assert_array_equal(selected.targets[:, 0], split.targets[:, 1])
+
+    def test_chlorine_sensor_selection_rejects_invalid_indices(self) -> None:
+        readings = np.arange(48, dtype=np.float32).reshape(8, 6)
+        times = np.arange(8, dtype=np.float32) * 1800
+        split = make_supervised_sequences(
+            readings, self.groups, 3, times, np.zeros((8, 2), dtype=bool)
+        )
+
+        with self.assertRaises(ValueError):
+            _select_chlorine_sensors(split, [0, 0])
+        with self.assertRaises(ValueError):
+            _select_chlorine_sensors(split, [2])
+
+    def test_classifier_allows_subset_without_local_arsenic_arrivals(self) -> None:
+        flags = np.zeros((5, 1), dtype=bool)
+
+        indices = _active_target_indices(
+            flags,
+            target_count=1,
+            has_event_classifier=True,
+        )
+
+        np.testing.assert_array_equal(indices, [0])
+        with self.assertRaises(ValueError):
+            _active_target_indices(
+                flags,
+                target_count=1,
+                has_event_classifier=False,
+            )
 
 
 if __name__ == "__main__":
