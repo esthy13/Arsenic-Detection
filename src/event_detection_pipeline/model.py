@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Sequence
 
 import numpy as np
@@ -9,7 +10,9 @@ from .classes import Scalers
 
 
 class WaterQualityANN(nn.Module):
-    def __init__(self, input_dim: int, output_dim: int, hidden_sizes: Sequence[int] = (128, 64)) -> None:
+    def __init__(self, input_dim: int, output_dim: int,
+                 hidden_sizes: Sequence[int] = (128, 64),
+                 dropout: float = 0.1) -> None:
         super().__init__()
         self.hidden_sizes = tuple(hidden_sizes)
         layers: list[nn.Module] = []
@@ -18,13 +21,104 @@ class WaterQualityANN(nn.Module):
             layers.append(nn.Linear(last_dim, hidden_size))
             #Gaussian Error Linear Unit
             layers.append(nn.GELU())
-            layers.append(nn.Dropout(0.1))
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
             last_dim = hidden_size
         layers.append(nn.Linear(last_dim, output_dim))
         self.network = nn.Sequential(*layers)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.network(inputs)
+
+
+class EventClassificationANN(nn.Module):
+    def __init__(self, input_dim: int, hidden_sizes: Sequence[int] = (128, 64),
+                 dropout: float = 0.1) -> None:
+        super().__init__()
+        layers: list[nn.Module] = []
+        last_dim = input_dim
+        for hidden_size in hidden_sizes:
+            layers.extend([nn.Linear(last_dim, hidden_size), nn.GELU()])
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
+            last_dim = hidden_size
+        layers.append(nn.Linear(last_dim, 1))
+        self.network = nn.Sequential(*layers)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.network(inputs)
+
+
+def train_event_classifier(
+    train_inputs: np.ndarray,
+    train_flags: np.ndarray,
+    validation_inputs: np.ndarray,
+    validation_flags: np.ndarray,
+    device: torch.device,
+    *,
+    hidden_sizes: Sequence[int] = (128, 64),
+    learning_rate: float = 3e-4,
+    batch_size: int = 256,
+    epochs: int = 100,
+    dropout: float = 0.1,
+    weight_decay: float = 1e-4,
+    patience: int = 10,
+) -> EventClassificationANN:
+    model = EventClassificationANN(
+        train_inputs.shape[1], hidden_sizes=hidden_sizes, dropout=dropout
+    ).to(device)
+    dataset = TensorDataset(
+        torch.as_tensor(train_inputs, dtype=torch.float32),
+        torch.as_tensor(train_flags[:, None], dtype=torch.float32),
+    )
+    loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True,
+        generator=torch.Generator().manual_seed(42),
+    )
+    positives = max(float(np.sum(train_flags)), 1.0)
+    negatives = max(float(len(train_flags) - np.sum(train_flags)), 1.0)
+    criterion = nn.BCEWithLogitsLoss(
+        pos_weight=torch.tensor([negatives / positives], device=device)
+    )
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=learning_rate, weight_decay=weight_decay
+    )
+    validation_x = torch.as_tensor(validation_inputs, dtype=torch.float32, device=device)
+    validation_y = torch.as_tensor(validation_flags[:, None], dtype=torch.float32, device=device)
+    best_loss = float("inf")
+    best_state = None
+    stale_epochs = 0
+    for _ in range(epochs):
+        model.train()
+        for inputs, flags in loader:
+            inputs, flags = inputs.to(device), flags.to(device)
+            optimizer.zero_grad(set_to_none=True)
+            loss = criterion(model(inputs), flags)
+            loss.backward()
+            optimizer.step()
+        model.eval()
+        with torch.no_grad():
+            validation_loss = float(criterion(model(validation_x), validation_y))
+        if validation_loss < best_loss - 1e-4:
+            best_loss = validation_loss
+            best_state = deepcopy(model.state_dict())
+            stale_epochs = 0
+        else:
+            stale_epochs += 1
+            if stale_epochs >= patience:
+                break
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    return model
+
+
+def predict_event_probability(
+    model: EventClassificationANN, inputs: np.ndarray, device: torch.device
+) -> np.ndarray:
+    model.eval()
+    with torch.no_grad():
+        logits = model(torch.as_tensor(inputs, dtype=torch.float32, device=device))
+        return torch.sigmoid(logits).cpu().numpy().reshape(-1)
 
 
 def select_device() -> torch.device:
@@ -71,8 +165,16 @@ def train_model(
     epochs: int = 80,
     learning_rate: float = 1e-3,
     weight_decay: float = 1e-4,
+    dropout: float = 0.1,
+    validation_inputs: np.ndarray | None = None,
+    validation_targets: np.ndarray | None = None,
+    patience: int = 12,
+    min_delta: float = 1e-5,
 ) -> WaterQualityANN:
-    model = WaterQualityANN(train_inputs.shape[1], train_targets.shape[1], hidden_sizes=hidden_sizes).to(device)
+    model = WaterQualityANN(
+        train_inputs.shape[1], train_targets.shape[1],
+        hidden_sizes=hidden_sizes, dropout=dropout
+    ).to(device)
 
     dataset = TensorDataset(
         torch.as_tensor(train_inputs, dtype=torch.float32),
@@ -82,9 +184,21 @@ def train_model(
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     criterion = nn.MSELoss()
+    validation_input_tensor = None
+    validation_target_tensor = None
+    if validation_inputs is not None and validation_targets is not None:
+        validation_input_tensor = torch.as_tensor(
+            validation_inputs, dtype=torch.float32, device=device
+        )
+        validation_target_tensor = torch.as_tensor(
+            validation_targets, dtype=torch.float32, device=device
+        )
+    best_loss = float("inf")
+    best_state = None
+    epochs_without_improvement = 0
 
-    model.train()
     for _ in range(epochs):
+        model.train()
         for batch_inputs, batch_targets in loader:
             batch_inputs = batch_inputs.to(device)
             batch_targets = batch_targets.to(device)
@@ -93,6 +207,26 @@ def train_model(
             loss = criterion(predictions, batch_targets)
             loss.backward()
             optimizer.step()
+
+        if validation_input_tensor is not None:
+            model.eval()
+            with torch.no_grad():
+                validation_loss = float(
+                    criterion(
+                        model(validation_input_tensor), validation_target_tensor
+                    ).item()
+                )
+            if validation_loss < best_loss - min_delta:
+                best_loss = validation_loss
+                best_state = deepcopy(model.state_dict())
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+                if epochs_without_improvement >= patience:
+                    break
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
 
     return model
 
@@ -106,5 +240,4 @@ def predict(model: WaterQualityANN, inputs: np.ndarray, device: torch.device) ->
 
 
 def residual_series(predicted: np.ndarray, actual: np.ndarray) -> np.ndarray:
-    #return np.sqrt(np.mean((actual - predicted) ** 2, axis=1))
-    return np.abs(predicted - actual).mean(axis=1)
+    return actual - predicted

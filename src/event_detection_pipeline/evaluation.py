@@ -11,8 +11,87 @@ from sklearn.metrics import (
     roc_auc_score,
     precision_recall_curve,
     average_precision_score,
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
 )
 from .classes import DetectionResult
+
+
+def get_chlorine_regression_summary(
+    result: DetectionResult,
+    chlorine_indices: list[int] | None = None,
+) -> dict[str, float]:
+    """Return regression metrics over the selected chlorine channels."""
+    if chlorine_indices is None:
+        chlorine_indices = list(range(result.actual.shape[1]))
+    actual = result.actual[:, chlorine_indices].reshape(-1)
+    predicted = result.predicted[:, chlorine_indices].reshape(-1)
+    return {
+        "chlorine_mae": float(mean_absolute_error(actual, predicted)),
+        "chlorine_rmse": float(np.sqrt(mean_squared_error(actual, predicted))),
+        "chlorine_r2": float(r2_score(actual, predicted)),
+    }
+
+
+def aggregate_evaluation_summary(
+    results: list[DetectionResult],
+    chlorine_indices: list[int] | None = None,
+) -> dict[str, float]:
+    """Evaluate classification and regression after concatenating test scenarios."""
+    if not results:
+        raise ValueError("At least one DetectionResult is required")
+
+    event_flags = np.concatenate([result.event_flags for result in results])
+    alarms = np.concatenate([result.alarms for result in results])
+    probabilities = np.concatenate(
+        [result.event_probability for result in results]
+    )
+    actual = np.concatenate([result.actual for result in results], axis=0)
+    predicted = np.concatenate([result.predicted for result in results], axis=0)
+
+    y_true = event_flags.astype(bool)
+    y_pred = alarms.astype(bool)
+    tp = int(np.sum(y_pred & y_true))
+    tn = int(np.sum(~y_pred & ~y_true))
+    fp = int(np.sum(y_pred & ~y_true))
+    fn = int(np.sum(~y_pred & y_true))
+    recall = tp / (tp + fn) if tp + fn else 0.0
+    specificity = tn / (tn + fp) if tn + fp else 0.0
+    precision = tp / (tp + fp) if tp + fp else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+
+    if chlorine_indices is None:
+        chlorine_indices = list(range(actual.shape[1]))
+    chlorine_actual = actual[:, chlorine_indices].reshape(-1)
+    chlorine_predicted = predicted[:, chlorine_indices].reshape(-1)
+
+    latencies = np.asarray(
+        [result.summary()["detection_latency_seconds"] for result in results],
+        dtype=float,
+    )
+    finite_latencies = latencies[np.isfinite(latencies)]
+    return {
+        "precision": float(precision),
+        "recall": float(recall),
+        "specificity": float(specificity),
+        "balanced_accuracy": float(0.5 * (recall + specificity)),
+        "accuracy": float((tp + tn) / len(y_true)),
+        "f1_score": float(f1),
+        "roc_auc": float(roc_auc_score(y_true, probabilities)),
+        "average_precision": float(average_precision_score(y_true, probabilities)),
+        "false_alarm_rate": float(1.0 - specificity),
+        "detection_latency_seconds": (
+            float(np.mean(finite_latencies)) if finite_latencies.size else float("nan")
+        ),
+        "chlorine_mae": float(
+            mean_absolute_error(chlorine_actual, chlorine_predicted)
+        ),
+        "chlorine_rmse": float(
+            np.sqrt(mean_squared_error(chlorine_actual, chlorine_predicted))
+        ),
+        "chlorine_r2": float(r2_score(chlorine_actual, chlorine_predicted)),
+    }
 
 
 def calculate_sensitivity_specificity(
@@ -110,7 +189,10 @@ def plot_roc_curve_chlorine_prediction(
     ax=None,
 ) -> tuple:
     """
-    Plot ROC curve for chlorine prediction by comparing predicted vs actual.
+    Plot contamination ROC using chlorine prediction residuals as anomaly scores.
+
+    This does not measure chlorine regression accuracy. A strong predictor may
+    also predict event-period chlorine well, producing an AUC near 0.5.
 
     Args:
         result: DetectionResult object
@@ -159,6 +241,43 @@ def plot_roc_curve_chlorine_prediction(
     ax.grid(alpha=0.3)
 
     return fpr, tpr, roc_auc, fig, ax
+
+
+def plot_chlorine_prediction_quality(
+    result: DetectionResult,
+    chlorine_indices: list[int] | None = None,
+    title: str = "Chlorine prediction quality",
+    figsize: tuple = (8, 6),
+    ax=None,
+) -> tuple:
+    """Plot predicted versus observed chlorine and report regression metrics."""
+    if chlorine_indices is None:
+        chlorine_indices = list(range(result.actual.shape[1]))
+    actual = result.actual[:, chlorine_indices].reshape(-1)
+    predicted = result.predicted[:, chlorine_indices].reshape(-1)
+    summary = get_chlorine_regression_summary(result, chlorine_indices)
+    r2 = summary["chlorine_r2"]
+    rmse = summary["chlorine_rmse"]
+    mae = summary["chlorine_mae"]
+
+    fig, ax = _get_fig_ax(ax=ax, figsize=figsize)
+    ax.scatter(actual, predicted, s=8, alpha=0.25, color="teal")
+    lower = float(min(actual.min(), predicted.min()))
+    upper = float(max(actual.max(), predicted.max()))
+    ax.plot([lower, upper], [lower, upper], "--", color="black", lw=1.5,
+            label="Perfect prediction")
+    ax.set_xlabel("Observed chlorine")
+    ax.set_ylabel("Predicted chlorine")
+    ax.set_title(title)
+    ax.text(
+        0.03, 0.97,
+        f"R² = {r2:.3f}\nRMSE = {rmse:.4f}\nMAE = {mae:.4f}",
+        transform=ax.transAxes, va="top",
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
+    )
+    ax.legend(loc="lower right")
+    ax.grid(alpha=0.3)
+    return r2, rmse, mae, fig, ax
 
 
 def plot_precision_recall_curve(
@@ -243,7 +362,12 @@ def plot_evaluation_metrics(
 
     precision, recall, f1_scores, fig, ax = plot_precision_recall_curve(result)
     figures["precision_recall"] = fig
-    metrics["event_detection_average_precision"] = float(np.mean(precision[:-1]))
+    metrics["event_detection_average_precision"] = float(
+        average_precision_score(
+            result.event_flags.astype(bool),
+            result.event_probability,
+        )
+    )
 
     if chlorine_indices is not None:
         fpr_cl, tpr_cl, roc_auc_cl, fig_cl, ax_cl = plot_roc_curve_chlorine_prediction(

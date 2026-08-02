@@ -2,18 +2,25 @@ import numpy as np
 
 class SensorGroups:
     def __init__(self, chlorine: list[int], flow: list[int], 
-                 arsenic: list[int]):
+                 arsenic: list[int], chlorine_nodes: list[str] | None = None,
+                 arsenic_nodes: list[str] | None = None):
         self.chlorine = chlorine
         self.flow = flow
         self.arsenic = arsenic
+        self.chlorine_nodes = chlorine_nodes or [str(index) for index in chlorine]
+        self.arsenic_nodes = arsenic_nodes or [str(index) for index in arsenic]
 
 class DatasetSplit:
     def __init__(self, inputs: np.ndarray, targets: np.ndarray, 
-                 flags: np.ndarray, times: np.ndarray):
+                 flags: np.ndarray, times: np.ndarray,
+                 target_flags: np.ndarray | None = None):
         self.inputs = inputs
         self.targets = targets
         self.flags = flags
         self.times = times
+        if target_flags is None:
+            target_flags = np.repeat(flags[:, None], targets.shape[1], axis=1)
+        self.target_flags = np.asarray(target_flags, dtype=bool)
 
 class Scalers:
     def __init__(self, input_mean: np.ndarray, input_std: np.ndarray, 
@@ -42,7 +49,8 @@ class DetectionResult:
                  upper_threshold: np.ndarray, lower_threshold: np.ndarray, 
                  event_probability: np.ndarray, alarms: np.ndarray, 
                  event_flags: np.ndarray, predicted: np.ndarray, 
-                 actual: np.ndarray):
+                 actual: np.ndarray, parameter_event_probability: np.ndarray | None = None,
+                 parameter_alarms: np.ndarray | None = None):
          self.times = times
          self.residuals = residuals
          self.upper_threshold = upper_threshold
@@ -52,6 +60,8 @@ class DetectionResult:
          self.event_flags = event_flags
          self.predicted = predicted
          self.actual = actual
+         self.parameter_event_probability = parameter_event_probability
+         self.parameter_alarms = parameter_alarms
 
     def _event_start_time(self) -> float:
         event_mask = np.asarray(self.event_flags, dtype=bool)
@@ -61,9 +71,11 @@ class DetectionResult:
         return float(np.asarray(self.times, dtype=float)[first_event_index])
 
     def _first_alarm_time(self) -> float:
-        if not np.any(self.alarms):
+        event_start_time = self._event_start_time()
+        eligible = self.alarms & (np.asarray(self.times) >= event_start_time)
+        if np.isnan(event_start_time) or not np.any(eligible):
             return float("nan")
-        first_alarm_index = int(np.argmax(self.alarms))
+        first_alarm_index = int(np.argmax(eligible))
         return float(np.asarray(self.times, dtype=float)[first_alarm_index])
 
     def summary(self) -> dict[str, float | int]:
