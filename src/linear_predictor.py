@@ -15,9 +15,9 @@ from GRASP_linear_predictor import *
 ###data: files with little arsenic contamination
 ###data_no_cont: files with no arsenic contamination
 ###data_strong_cont: files with strong arsenic contamination
-data = read_files("../data/scada_data_")
-data_no_cont = read_files("../data/scada_data_no_cont")
-data_strong_cont = read_files("../data/scada_data_strong_cont")
+data = read_files("data/scada_data_")
+data_no_cont = read_files("data/scada_data_no_cont")
+data_strong_cont = read_files("data/scada_data_strong_cont")
 
 ###Get mean and standard deviation for the chlorine, flow and arsenic sensor readings for all the values
 cl_mean, flow_mean, as_mean, cl_std, flow_std, as_std = get_cardinal_metrics_cl_as_flow(data)
