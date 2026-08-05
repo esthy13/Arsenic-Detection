@@ -140,18 +140,21 @@ reg_no_cont = LinearRegression()
 reg_no_cont.fit(X_train_no_cont, y_train_no_cont)
 
 ###Test with no contamination data to get appropriate threshold for anomaly detection
-best_threshold = 1
-while best_threshold > 0:
-    no_cont_metrics = calculateMetrics(reg_no_cont, X_test_no_cont, y_test_no_cont, as_y_no_cont, lambda pred_val, real_val, id: detect_anom(pred_val, real_val, id, 0.4))
+
+best_threshold = 0
+while best_threshold >= 0:
+    no_cont_metrics = calculateMetrics(reg_no_cont, X_test_no_cont, y_test_no_cont, as_y_no_cont, lambda pred_val, real_val, id: detect_anom(pred_val, real_val, id, best_threshold))
     if len(no_cont_metrics["anomalies"]) <= 0:
         break
     else:
-        best_threshold -= 0.1
+        best_threshold += 0.1
+    #print(best_threshold)
 print("Best threshold for anomaly detection: ", best_threshold) 
+
 
 ###Test with small contamination data, with threshold
 print("Normal test:")
-no_cont_metrics = calculateMetrics(reg_no_cont, X_test_2, y_test_2, as_y, lambda pred_val, real_val, id: detect_anom(pred_val, real_val, id, 0.4))
+no_cont_metrics = calculateMetrics(reg_no_cont, X_test_2, y_test_2, as_y, lambda pred_val, real_val, id: detect_anom(pred_val, real_val, id, best_threshold))
 reg_no_cont.score(X_train_no_cont, y_train_no_cont)
 no_cont_abs, no_cont_rel, no_cont_cond_true, no_cont_cond_false = createOverviewTables(no_cont_metrics["H1_H0"], no_cont_metrics["tp_rel"], no_cont_metrics["fn_rel"], no_cont_metrics["fp_rel"], no_cont_metrics["tn_rel"], no_cont_metrics["tp_true"], no_cont_metrics["fn_true"], no_cont_metrics["fp_false"], no_cont_metrics["tn_false"])
 printOverviewTables(no_cont_abs, no_cont_rel, no_cont_cond_true, no_cont_cond_false)
@@ -159,7 +162,7 @@ printOverviewTables(no_cont_abs, no_cont_rel, no_cont_cond_true, no_cont_cond_fa
 
 ###Test with strong contamination data
 print("Strong data test:")
-strong_cont_metrics = calculateMetrics(reg_no_cont, X_test_strong_cont, y_test_strong_cont, as_y_strong_cont, lambda pred_val, real_val, id: detect_anom(pred_val, real_val, id, 0.4))
+strong_cont_metrics = calculateMetrics(reg_no_cont, X_test_strong_cont, y_test_strong_cont, as_y_strong_cont, lambda pred_val, real_val, id: detect_anom(pred_val, real_val, id, best_threshold))
 strong_cont_abs, strong_cont_rel, strong_cont_cond_true, strong_cont_cond_false = createOverviewTables(strong_cont_metrics["H1_H0"], strong_cont_metrics["tp_rel"], strong_cont_metrics["fn_rel"], strong_cont_metrics["fp_rel"], strong_cont_metrics["tn_rel"], strong_cont_metrics["tp_true"], strong_cont_metrics["fn_true"], strong_cont_metrics["fp_false"], strong_cont_metrics["tn_false"])
 printOverviewTables(strong_cont_abs, strong_cont_rel, strong_cont_cond_true, strong_cont_cond_false)
 #saveOverviewTables(strong_cont_abs, strong_cont_rel, strong_cont_cond_true, strong_cont_cond_false, "strong_cont")
@@ -168,7 +171,7 @@ createOverviewDiagrams(strong_cont_metrics["real_vals_cl"], strong_cont_metrics[
 
 ###Test with strong contamination data and power transformation
 print("Strong data and power test:")
-strong_power_metrics = calculateMetrics(reg_no_cont, X_test_strong_cont, y_test_strong_cont, as_y_strong_cont, lambda pred_val, real_val, id: detect_anom_power(pred_val, real_val, id, 0.4))
+strong_power_metrics = calculateMetrics(reg_no_cont, X_test_strong_cont, y_test_strong_cont, as_y_strong_cont, lambda pred_val, real_val, id: detect_anom_power(pred_val, real_val, id, best_threshold))
 strong_power_abs, strong_power_rel, strong_power_cond_true, strong_power_cond_false = createOverviewTables(strong_power_metrics["H1_H0"], strong_power_metrics["tp_rel"], strong_power_metrics["fn_rel"], strong_power_metrics["fp_rel"], strong_power_metrics["tn_rel"], strong_power_metrics["tp_true"], strong_power_metrics["fn_true"], strong_power_metrics["fp_false"], strong_power_metrics["tn_false"])
 printOverviewTables(strong_power_abs, strong_power_rel, strong_power_cond_true, strong_power_cond_false)
 #saveOverviewTables(strong_power_abs, strong_power_rel, strong_power_cond_true, strong_power_cond_false, "strong_power")
@@ -178,9 +181,9 @@ createOverviewDiagrams(strong_power_metrics["real_vals_cl"], strong_power_metric
 
 print("Gliding time frame test:")
 gliding_strong_power_metrics = calculateMetrics_last_10_diffs(strong_power_metrics, X_test_strong_cont, as_y_strong_cont)
-gliding_strong_cont_abs, strong_cont_rel, strong_cont_cond_true, strong_cont_cond_false = createOverviewTables(gliding_strong_power_metrics["H1_H0"], gliding_strong_power_metrics["tp_rel"], gliding_strong_power_metrics["fn_rel"], gliding_strong_power_metrics["fp_rel"], gliding_strong_power_metrics["tn_rel"], gliding_strong_power_metrics["tp_true"], gliding_strong_power_metrics["fn_true"], gliding_strong_power_metrics["fp_false"], gliding_strong_power_metrics["tn_false"])
-printOverviewTables(gliding_strong_cont_abs, strong_cont_rel, strong_cont_cond_true, strong_cont_cond_false)
-#saveOverviewTables(gliding_strong_cont_abs, strong_cont_rel, strong_cont_cond_true, strong_cont_cond_false)
+gliding_strong_cont_abs, gliding_strong_cont_rel, gliding_strong_cont_cond_true, gliding_strong_cont_cond_false = createOverviewTables(gliding_strong_power_metrics["H1_H0"], gliding_strong_power_metrics["tp_rel"], gliding_strong_power_metrics["fn_rel"], gliding_strong_power_metrics["fp_rel"], gliding_strong_power_metrics["tn_rel"], gliding_strong_power_metrics["tp_true"], gliding_strong_power_metrics["fn_true"], gliding_strong_power_metrics["fp_false"], gliding_strong_power_metrics["tn_false"])
+printOverviewTables(gliding_strong_cont_abs, gliding_strong_cont_rel, gliding_strong_cont_cond_true, gliding_strong_cont_cond_false)
+#saveOverviewTables(gliding_strong_cont_abs, gliding_strong_cont_rel, gliding_strong_cont_cond_true, gliding_strong_cont_cond_false)
 
 print("Optimization with GRASP:")
 #Grasp for optimizing the linear regression
@@ -201,7 +204,7 @@ while i < 50:
     if len(S) > GRASP_THRESHOLD:
         S = repair(S,RCL, GRASP_THRESHOLD)
     #Perform local search on new solution
-    S, tp_rel_final = local_search(S, reg_no_cont, C, test_set_strong_cont, node_sensor, sensor_data)
+    S, tp_rel_final = local_search(S, reg_no_cont, C, test_set_strong_cont, node_sensor, sensor_data, best_threshold)
     print("S after local search: ", S)
 
     #if more than one iteration
@@ -214,7 +217,7 @@ while i < 50:
             if len(P) > 1:
                 #, perform path relinking
                 print("Elitepool before path relinking:", P)
-                P = path_relinking(P, S, test_set_strong_cont, node_sensor, sensor_data, reg_no_cont)
+                P = path_relinking(P, S, test_set_strong_cont, node_sensor, sensor_data, reg_no_cont, best_threshold)
                 print("Elitepool after path relinking:", P)
     #if first iteration
     else:
@@ -222,17 +225,18 @@ while i < 50:
         P[frozenset(S)] = tp_rel_final
     i+=1
 
-print(P)
+#print(P)
 P2 = {}
 #Postoptimization, just deleting duplicates
 for solution in P:
     if solution not in P2:
         P2[solution] = P[solution]
 #Argmax instead of argmin (like in the paper) because tp_rel is supposed to be the highest possible
-print(P2)
+#print(P2)
 #Get the best solution (highest tp_rel)
 best_solution = [key for key, value in P2.items() if value == max(P2.values())]
-print(best_solution)
+print("Best solution: ", best_solution)
+print("Best solution tp_rel: ", P2[best_solution[0]])
 
 
     

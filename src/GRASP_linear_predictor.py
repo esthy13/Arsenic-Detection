@@ -5,7 +5,7 @@
 
 import random
 import numpy as np
-from linear_predictor_functions import getTestData, calculateMetrics, detect_anom
+from linear_predictor_functions import detect_anom_power, getTestData, calculateMetrics, detect_anom
 import copy
 
 ## Functions
@@ -118,7 +118,7 @@ def get_partial_data(data, S, node_sensor, sensor_data):
 ###Implementation of local search. Searches best solutions based on semi-greedy solution.
 ###Input: S (nodes/sensor placements selected by semi-greedy algorithm and repair), regression_model (a linear regression model to test the efficiency of sensor placements), C (list of nodes and their neighbors), data(data to test on)
 ###Output: S (optimal sensor placements according to local search)
-def local_search(S, regression_model, C, data, node_sensor, sensor_data):
+def local_search(S, regression_model, C, data, node_sensor, sensor_data, threshold):
     #Accuracy
     #print(data[0]["X_cl_st_per_sensor"])
     #test regression with original data and get metrics (tp_rel)
@@ -127,7 +127,7 @@ def local_search(S, regression_model, C, data, node_sensor, sensor_data):
     #print(original_partial_data[0]["X_cl_st_per_sensor"])
     #print("Cl sensors: ", original_partial_data[0]["Cl_sensors"])
     original_X_test, original_y_test, original_as_y  = getTestData(original_partial_data)
-    original_metrics = calculateMetrics(regression_model, original_X_test, original_y_test, original_as_y, lambda pred_val, real_val, id: detect_anom(pred_val, real_val, id, 0.4))
+    original_metrics = calculateMetrics(regression_model, original_X_test, original_y_test, original_as_y, lambda pred_val, real_val, id: detect_anom_power(pred_val, real_val, id, threshold))
     tp_rel_final = original_metrics["tp_rel"]
     i = 0
 
@@ -146,7 +146,7 @@ def local_search(S, regression_model, C, data, node_sensor, sensor_data):
                 partial_data, new_node_sensor, new_sensor_data = get_partial_data(data, new_S, node_sensor, sensor_data)
                 X_test, y_test, as_y  = getTestData(partial_data)
                 ##Test these sensors with the regression model
-                test_metrics = calculateMetrics(regression_model, X_test, y_test, as_y, lambda pred_val, real_val, id: detect_anom(pred_val, real_val, id, 0.4))
+                test_metrics = calculateMetrics(regression_model, X_test, y_test, as_y, lambda pred_val, real_val, id: detect_anom_power(pred_val, real_val, id, threshold))
                 ##If accuracy better, keep it and break to restart the same process with the new node in S
                 if original_metrics["tp_rel"] < test_metrics["tp_rel"]:
                     S = new_S
@@ -158,7 +158,7 @@ def local_search(S, regression_model, C, data, node_sensor, sensor_data):
 ###Implementation of path relinking. Changes one solution to resemble the other
 ###Input: elitepool (dictionary of best solutions and their tp values), S (nodes/sensor placements selected by semi-greedy algorithm and repair), data(data to test on), node_sensor (relationships between nodes and sensors), sensor_data (relationships between sensors in general and in data) regression_model (a linear regression model to test the efficiency of sensor placements), 
 ###Output: S (optimal sensor placements according to local search)
-def path_relinking(elitepool, S, data, node_sensor, sensor_data, regression_model):
+def path_relinking(elitepool, S, data, node_sensor, sensor_data, regression_model, threshold):
     #Copy S to avoid changing the original S
     solution_one = S.copy()
     #Choose a random solution from the elitepool that is not the same as solution_one
@@ -190,7 +190,7 @@ def path_relinking(elitepool, S, data, node_sensor, sensor_data, regression_mode
         #Get according partial data, test it
         partial_data, _, _ = get_partial_data(data, solution_one_set_test, node_sensor, sensor_data)
         X_test, y_test, as_y  = getTestData(partial_data)
-        test_metrics = calculateMetrics(regression_model, X_test, y_test, as_y, lambda pred_val, real_val, id: detect_anom(pred_val, real_val, id, 0.4))
+        test_metrics = calculateMetrics(regression_model, X_test, y_test, as_y, lambda pred_val, real_val, id: detect_anom_power(pred_val, real_val, id, threshold))
         
         #If elitepool has at least 10 nodes
         if len(elitepool) >= 10:
