@@ -1,7 +1,5 @@
 # Arsenic Detection in Water Distribution Networks
 
-This project was completed as part of the **Machine Learning for Water Distribution Systems** course at the University of Bielefeld (Summer Semester 2025-2026).
-
 ## Overview
 
 This project investigates machine-learning-based methods for detecting arsenic contamination in drinking water distribution systems. While traditional chemical analysis is commonly used for arsenic detection, this work explores an alternative approach using data-driven models that leverage water quality measurements from distributed sensor networks.
@@ -10,12 +8,18 @@ Arsenic contamination in drinking water poses severe health risks, including nau
 
 The main contribution of this work is an integrated pipeline that combines **Artificial Neural Network (ANN)-based arsenic contamination detection** with **GRASP-based sensor optimization**. The ANN identifies contamination events from chlorine concentration measurements, while a Greedy Randomized Adaptive Search Procedure (GRASP) optimizes sensor placement to reduce monitoring infrastructure costs without significantly sacrificing detection performance.
 
+A **linear regression baseline** is also included for comparison, demonstrating the superiority of nonlinear approaches for this complex detection task.
+
 ## Key Results
 
+### ANN-Based Detection
 - **Best ANN Performance:** Balanced Accuracy of 70.46%, with a specificity of 77.44% and detection latency of 37.5 minutes for arsenic contamination events
 - **Chlorine Prediction Accuracy:** R² ≈ 0.91, indicating that chlorine concentrations can be modeled accurately with neural networks
 - **Sensor Optimization:** GRASP successfully identified effective sensor configurations with only 3 chlorine sensors (instead of the full network deployment) while maintaining competitive detection performance
-- **Baseline Comparison:** The linear regression baseline proved insufficient for reliable contamination detection, demonstrating the superiority of nonlinear machine-learning models
+
+### Baseline Comparison
+- **Linear Regression Baseline:** Despite various modifications (stronger contamination scenarios, power amplification, gliding time frames), the linear predictor proved insufficient for reliable contamination detection
+- **Key Finding:** The nonlinear ANN substantially outperforms the linear baseline, demonstrating that capturing complex relationships between hydraulic conditions, chlorine concentrations, and contamination events requires nonlinear models
 
 ## Repository Structure
 
@@ -25,7 +29,7 @@ The main contribution of this work is an integrated pipeline that combines **Art
 ├── pyproject.toml                      # Project configuration and dependencies
 ├── main.py                             # Placeholder entry point
 ├── src/
-│   ├── linear_predictor.py            # Legacy linear regression detector (baseline)
+│   ├── linear_predictor.py            # Linear regression detector (baseline)
 │   ├── linear_predictor_functions.py  # Helper functions for linear model
 │   ├── GRASP_linear_predictor.py      # Sensor optimization for linear model
 │   ├── data/                           # (Data files, should contain .npz simulation outputs)
@@ -34,7 +38,7 @@ The main contribution of this work is an integrated pipeline that combines **Art
 │   ├── results/                        # Trained models and detection results
 │   │   ├── tuned_detector/            # Baseline ANN detector model
 │   │   └── supervised_ann_detector/   # Final supervised ANN event detector
-│   └── event_detection_pipeline/       # Main detection pipeline module
+│   └── event_detection_pipeline/       # Main ANN detection pipeline module
 │       ├── __init__.py                 # Package exports
 │       ├── cli.py                      # Command-line interface for training and inference
 │       ├── constants.py                # Configuration constants (history, thresholds, etc.)
@@ -59,30 +63,27 @@ The main contribution of this work is an integrated pipeline that combines **Art
 ### Setup
 
 1. **Clone the repository:**
-
    ```bash
    git clone <repo-url>
    cd Arsenic-Detection
    ```
-2. **Create and activate the virtual environment:**
 
+2. **Create and activate the virtual environment:**
    ```bash
    uv sync
    ```
-
+   
    On Linux/macOS:
-
    ```bash
    source .venv/bin/activate
    ```
-
+   
    On Windows:
-
    ```cmd
    .venv\Scripts\activate
    ```
-3. **Install additional dependencies (if needed):**
 
+3. **Install additional dependencies (if needed):**
    ```bash
    uv add <library_name>
    ```
@@ -90,31 +91,27 @@ The main contribution of this work is an integrated pipeline that combines **Art
 ### Prepare Data
 
 The project expects water quality simulation data in `.npz` format (NumPy compressed arrays) from the EPyT-Flow package. Each file should contain:
-
 - `sensor_readings`: Array of sensor measurements (chlorine, flow, arsenic concentrations)
 - `sensor_readings_time`: Timestamps of measurements (in seconds)
 - `col_desc`: Column descriptions identifying sensor types and nodes
 
 **Note:** Data files are not included in this repository. To generate them, you must:
-
 1. Install EPyT-Flow: `uv add epyt-flow`
 2. Run water distribution network simulations with contamination scenarios
 3. Export sensor readings to `.npz` files and organize them in `src/data/`
 
 See the existing notebooks (e.g., `src/notebooks/net1_visualization.ipynb`) for examples of how to generate and structure data.
 
-### Run the Detection Pipeline
+### Run the ANN Detection Pipeline
 
 #### Option 1: CLI with Default Settings
 
-Train and test the detector with default parameters:
-
+Train and test the ANN detector with default parameters:
 ```bash
 uv run python -c 'from src.event_detection_pipeline.cli import main; main()'
 ```
 
 The default configuration uses:
-
 - 48 samples of half-hour history (one full daily cycle)
 - Chlorine concentration as the primary water quality indicator
 - AsIII arrival threshold of 0.01 mg/L for event labeling
@@ -123,8 +120,7 @@ The default configuration uses:
 
 #### Option 2: CLI with Custom Parameters
 
-Customize the training pipeline:
-
+Customize the ANN training pipeline:
 ```bash
 uv run python -c 'from src.event_detection_pipeline.cli import main; main()' \
   --data-dir src/data \
@@ -138,7 +134,6 @@ uv run python -c 'from src.event_detection_pipeline.cli import main; main()' \
 ```
 
 **Common CLI Options:**
-
 - `--data-dir`: Path to directory containing `.npz` data files
 - `--history`: Number of historical samples to use (default: 48)
 - `--epochs`: Maximum training epochs (default: 80)
@@ -153,8 +148,7 @@ uv run python -c 'from src.event_detection_pipeline.cli import main; main()' \
 
 #### Option 3: Programmatic Usage
 
-Use the pipeline directly in Python:
-
+Use the ANN pipeline directly in Python:
 ```python
 from pathlib import Path
 from src.event_detection_pipeline import run_pipeline, build_detector
@@ -177,10 +171,23 @@ result = detector.detect(Path("path/to/test_file.npz"))
 print(f"Balanced Accuracy: {result.summary()['balanced_accuracy']}")
 ```
 
+### Run the Linear Regression Baseline
+
+The linear predictor baseline is implemented in `src/linear_predictor.py`. It uses:
+- Linear regression to predict chlorine concentrations from flow and historical chlorine measurements
+- Residual thresholds to detect anomalies (deviations from predicted chlorine indicate contamination)
+- GRASP optimization to select the most informative sensor subset
+
+To run the baseline, execute:
+```bash
+uv run python src/linear_predictor.py
+```
+
+The linear model serves as a comparison point and demonstrates why nonlinear approaches are necessary for this detection task.
+
 ### Output
 
-The pipeline produces a JSON report with the following structure:
-
+The ANN pipeline produces a JSON report with the following structure:
 ```json
 {
   "device": "cuda" or "cpu",
@@ -212,30 +219,35 @@ The pipeline produces a JSON report with the following structure:
 ### Core Components
 
 **`WaterQualityANN` (model.py):**
-
 - Multi-layer feedforward neural network with GELU activations and dropout regularization
 - Predicts chlorine concentrations from historical flow and chlorine measurements
 - Residuals (actual − predicted chlorine) indicate anomalies caused by arsenic contamination
 
 **`EventClassificationANN` (model.py):**
-
 - Supervised binary classifier trained on contamination events
 - Uses multiscale temporal features (current flows, chlorine changes over 1/3/6/24/48 samples) and cyclical time-of-day encoding
 - Outputs event probability used for final alarm decisions
 
 **`EventDetector` (pipeline.py):**
-
 - Manages multiple trained ANN models (one per sensor node)
 - Combines residual-based and supervised classification approaches
 - Generates detection results with alarms, probabilities, and diagnostics
 
-**GRASP Sensor Optimization (grasp.py):**
+**Linear Predictor Baseline (linear_predictor.py, linear_predictor_functions.py):**
+- Implements linear regression for chlorine prediction
+- Uses standardized chlorine and flow measurements
+- Anomaly detection via residual thresholds
+- Demonstrates the limitations of linear models for complex contamination detection
 
+**GRASP Sensor Optimization (grasp.py, GRASP_linear_predictor.py):**
 - Greedy randomized algorithm for selecting a subset of chlorine sensors
 - Balances detection performance against infrastructure cost
+- Applied to both ANN and linear baseline approaches
 - Identified 3-sensor configurations maintaining competitive accuracy
 
 ## Notes on Model Defaults
+
+### ANN Detector
 
 The ANN detector is configured with the following defaults:
 
@@ -250,10 +262,18 @@ The ANN detector is configured with the following defaults:
 
 To retrain a detector with modified feature layouts, saved models must be discarded and the pipeline re-run.
 
+### Linear Baseline
+
+- Uses standardized chlorine, flow, and arsenic measurements (z-score normalization)
+- Trains on normal operation periods only
+- Anomaly detection via residual thresholds on predicted vs. actual chlorine
+- Investigated several modifications to improve performance (power amplification, stronger contamination scenarios, gliding time frames) but remained unsuitable for reliable detection
+
 ## Limitations and Future Work
 
-- **Limited Single Indicator:** The framework relies only on chlorine concentration as the water quality indicator, whereas other approaches use multiple indicators. Performance could improve with additional measurements
+- **Limited Single Indicator:** The framework relies only on chlorine concentration as the water quality indicator. Performance could improve with additional measurements
 - **Recall Gap:** Current detection recall (44.97%–63.47%) reflects the restrictive sensing conditions (single indicator), but leaves room for improvement through additional data integration
+- **Linear Model Inadequacy:** The linear regression baseline could not reliably distinguish contamination events from normal operation, even with various modifications, highlighting the need for nonlinear models
 - **Future Directions:**
   - Evaluate on larger, more realistic water distribution networks
   - Investigate additional contamination scenarios and types
@@ -261,6 +281,18 @@ To retrain a detector with modified feature layouts, saved models must be discar
   - Incorporate additional hydraulic and water-quality indicators
   - Reduce false-alarm rates through improved threshold calibration
 
+## Dependencies
+
+Key dependencies are listed in `pyproject.toml`:
+- **epyt-flow** (≥0.17.1): Water distribution network simulation and benchmarks
+- **scikit-learn** (≥1.9.0): Data preprocessing and classical ML baselines (linear regression)
+- **numpy** (≥1.26): Numerical computing
+- **torch** (≥2.2): Deep learning framework and neural network training
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 (see LICENSE file).
+
+## Course
+
+This project was completed as part of the **Machine Learning for Water Distribution Systems** course at the University of Bielefeld (Winter Semester 2025-2026).
