@@ -1,5 +1,7 @@
 # Arsenic Detection in Water Distribution Networks
 
+This project was completed as part of the **Machine Learning for Water Distribution Systems** course at the University of Bielefeld (Summer Semester 2025-2026).
+
 ## Overview
 
 This project investigates machine-learning-based methods for detecting arsenic contamination in drinking water distribution systems. While traditional chemical analysis is commonly used for arsenic detection, this work explores an alternative approach using data-driven models that leverage water quality measurements from distributed sensor networks.
@@ -57,27 +59,30 @@ The main contribution of this work is an integrated pipeline that combines **Art
 ### Setup
 
 1. **Clone the repository:**
+
    ```bash
    git clone <repo-url>
    cd Arsenic-Detection
    ```
-
 2. **Create and activate the virtual environment:**
+
    ```bash
    uv sync
    ```
-   
+
    On Linux/macOS:
+
    ```bash
    source .venv/bin/activate
    ```
-   
+
    On Windows:
+
    ```cmd
    .venv\Scripts\activate
    ```
-
 3. **Install additional dependencies (if needed):**
+
    ```bash
    uv add <library_name>
    ```
@@ -85,11 +90,13 @@ The main contribution of this work is an integrated pipeline that combines **Art
 ### Prepare Data
 
 The project expects water quality simulation data in `.npz` format (NumPy compressed arrays) from the EPyT-Flow package. Each file should contain:
+
 - `sensor_readings`: Array of sensor measurements (chlorine, flow, arsenic concentrations)
 - `sensor_readings_time`: Timestamps of measurements (in seconds)
 - `col_desc`: Column descriptions identifying sensor types and nodes
 
 **Note:** Data files are not included in this repository. To generate them, you must:
+
 1. Install EPyT-Flow: `uv add epyt-flow`
 2. Run water distribution network simulations with contamination scenarios
 3. Export sensor readings to `.npz` files and organize them in `src/data/`
@@ -101,11 +108,13 @@ See the existing notebooks (e.g., `src/notebooks/net1_visualization.ipynb`) for 
 #### Option 1: CLI with Default Settings
 
 Train and test the detector with default parameters:
+
 ```bash
 uv run python -c 'from src.event_detection_pipeline.cli import main; main()'
 ```
 
 The default configuration uses:
+
 - 48 samples of half-hour history (one full daily cycle)
 - Chlorine concentration as the primary water quality indicator
 - AsIII arrival threshold of 0.01 mg/L for event labeling
@@ -115,6 +124,7 @@ The default configuration uses:
 #### Option 2: CLI with Custom Parameters
 
 Customize the training pipeline:
+
 ```bash
 uv run python -c 'from src.event_detection_pipeline.cli import main; main()' \
   --data-dir src/data \
@@ -128,6 +138,7 @@ uv run python -c 'from src.event_detection_pipeline.cli import main; main()' \
 ```
 
 **Common CLI Options:**
+
 - `--data-dir`: Path to directory containing `.npz` data files
 - `--history`: Number of historical samples to use (default: 48)
 - `--epochs`: Maximum training epochs (default: 80)
@@ -143,6 +154,7 @@ uv run python -c 'from src.event_detection_pipeline.cli import main; main()' \
 #### Option 3: Programmatic Usage
 
 Use the pipeline directly in Python:
+
 ```python
 from pathlib import Path
 from src.event_detection_pipeline import run_pipeline, build_detector
@@ -168,6 +180,7 @@ print(f"Balanced Accuracy: {result.summary()['balanced_accuracy']}")
 ### Output
 
 The pipeline produces a JSON report with the following structure:
+
 ```json
 {
   "device": "cuda" or "cpu",
@@ -199,21 +212,25 @@ The pipeline produces a JSON report with the following structure:
 ### Core Components
 
 **`WaterQualityANN` (model.py):**
+
 - Multi-layer feedforward neural network with GELU activations and dropout regularization
 - Predicts chlorine concentrations from historical flow and chlorine measurements
 - Residuals (actual − predicted chlorine) indicate anomalies caused by arsenic contamination
 
 **`EventClassificationANN` (model.py):**
+
 - Supervised binary classifier trained on contamination events
 - Uses multiscale temporal features (current flows, chlorine changes over 1/3/6/24/48 samples) and cyclical time-of-day encoding
 - Outputs event probability used for final alarm decisions
 
 **`EventDetector` (pipeline.py):**
+
 - Manages multiple trained ANN models (one per sensor node)
 - Combines residual-based and supervised classification approaches
 - Generates detection results with alarms, probabilities, and diagnostics
 
 **GRASP Sensor Optimization (grasp.py):**
+
 - Greedy randomized algorithm for selecting a subset of chlorine sensors
 - Balances detection performance against infrastructure cost
 - Identified 3-sensor configurations maintaining competitive accuracy
@@ -244,18 +261,6 @@ To retrain a detector with modified feature layouts, saved models must be discar
   - Incorporate additional hydraulic and water-quality indicators
   - Reduce false-alarm rates through improved threshold calibration
 
-## Dependencies
-
-Key dependencies are listed in `pyproject.toml`:
-- **epyt-flow** (≥0.17.1): Water distribution network simulation and benchmarks
-- **scikit-learn** (≥1.9.0): Data preprocessing and classical ML baselines
-- **numpy** (≥1.26): Numerical computing
-- **torch** (≥2.2): Deep learning framework and neural network training
-
 ## License
 
 This project is licensed under the GNU General Public License v3.0 (see LICENSE file).
-
-## Course
-
-This project was completed as part of the **Machine Learning for Water Distribution Systems** course at the University of Bielefeld (Winter Semester 2025-2026).
