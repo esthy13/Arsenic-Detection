@@ -93,7 +93,7 @@ A **linear regression** is also included for comparison, demonstrating the super
    uv add <library_name>
    ```
 
-### Prepare Data
+## Prepare Data
 
 The project expects water quality simulation data in `.npz` format (NumPy compressed arrays) from the EPyT-Flow package. Each file should contain:
 
@@ -101,13 +101,80 @@ The project expects water quality simulation data in `.npz` format (NumPy compre
 - `sensor_readings_time`: Timestamps of measurements (in seconds)
 - `col_desc`: Column descriptions identifying sensor types and nodes
 
-**Note:** Data files are not included in this repository. To generate them, you must:
+**Note:** Data files are not included in this repository.
 
-1. Install EPyT-Flow: `uv add epyt-flow`
-2. Run water distribution network simulations with contamination scenarios
-3. Export sensor readings to `.npz` files and organize them in `src/data/`
+#### Quick Start: Download Pre-Generated Datasets
 
-See the existing notebooks (e.g., `src/notebooks/net1_visualization.ipynb`) for examples of how to generate and structure data.
+The project uses three contamination scenarios. Pre-generated datasets are available at: [unibielefeldde-my.sharepoint.com/:f:/g/personal/esther_giuliano_uni-bielefeld_de/IgCZgtxawhOKTZdUQyggijnLAXyBwXytLhMv9WisUBWWNlc?e=xppirc](https://unibielefeldde-my.sharepoint.com/:f:/g/personal/esther_giuliano_uni-bielefeld_de/IgCZgtxawhOKTZdUQyggijnLAXyBwXytLhMv9WisUBWWNlc?e=xppirc)
+
+Download and extract to `src/data/`:
+
+- `scada_data_*.npz` (20 files, weak contamination)
+- `scada_data_no_cont_*.npz` (20 files, no contamination)
+- `scada_data_strong_cont_*.npz` (20 files, strong contamination)
+
+#### Generate Datasets from Simulations
+
+Three Python scripts generate the three datasets by simulating the Net1 water distribution network with different contamination levels using EPyT-Flow:
+
+**Dataset 1: Weak Contamination (100 mg/L Arsenite injection)**
+
+```bash
+cd src
+uv run python arsenic_contamination.py
+```
+
+This generates 20 `.npz` files: `scada_data_1.npz` to `scada_data_20.npz`
+
+**Dataset 2: No Contamination (baseline)**
+
+```bash
+cd src
+uv run python no_arsenic_contamination.py
+```
+
+This generates 20 `.npz` files: `scada_data_no_cont1.npz` to `scada_data_no_cont20.npz`
+
+**Dataset 3: Strong Contamination (100000 mg/L Arsenite injection)**
+
+```bash
+cd src
+uv run python strong_arsenic_contamination.py
+```
+
+This generates 20 `.npz` files: `scada_data_strong_cont1.npz` to `scada_data_strong_cont20.npz`
+
+##### Understanding the Dataset Generation
+
+Each script:
+
+1. Loads 20 Net1 scenarios from the LeakDB benchmark
+2. Configures EPANET-MSX for arsenic contamination modeling
+3. Sets up 21-day simulations with:
+   - **Chlorine sensors** at 9 strategic network locations: nodes 10, 11, 12, 13, 21, 22, 23, 31, 32
+   - **Arsenic (AsIII) sensors** at all network nodes for ground truth
+   - **Chlorine injection** at node 10 (1 mg/L constant source)
+4. Injects arsenic contamination at node 22 from day 3 to day 4:
+   - **Weak:** 100 mg/L
+   - **Strong:** 100,000 mg/L
+   - **No contamination:** No injection event
+5. Exports sensor readings to `.npz` files in `src/data/`
+6. Generates visualization plots in `src/plots/`
+
+**Output directory structure after generation:**
+
+```
+src/
+├── data/
+│   ├── scada_data_1.npz to scada_data_20.npz              # Weak contamination (20 files)
+│   ├── scada_data_no_cont1.npz to scada_data_no_cont20.npz # No contamination (20 files)
+│   └── scada_data_strong_cont1.npz to scada_data_strong_cont20.npz # Strong contamination (20 files)
+└── plots/
+    ├── chlorine_concentration_*.png     # Chlorine sensor plots
+    └── arsenic_concentration_*.png      # Arsenic sensor plots
+```
+
+**Note:** Data generation requires internet access (first run will download the Net1 network from LeakDB). Subsequent runs will use cached data. Each dataset typically takes 30-60 minutes to generate depending on system performance.
 
 ### Run the ANN Detection Pipeline
 
