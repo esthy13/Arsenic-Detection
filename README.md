@@ -31,14 +31,14 @@ A **linear regression** is also included for comparison, demonstrating the super
 ├── pyproject.toml                      # Project configuration and dependencies
 ├── main.py                             # Placeholder entry point
 ├── src/
-│   ├── linear_predictor.py            # Linear regression detector (baseline)
+│   ├── linear_predictor.py            # Linear regression detector
 │   ├── linear_predictor_functions.py  # Helper functions for linear model
 │   ├── GRASP_linear_predictor.py      # Sensor optimization for linear model
 │   ├── data/                           # (Data files, should contain .npz simulation outputs)
 │   ├── notebooks/                      # Jupyter notebooks for exploration and visualization
 │   │   └── net1_visualization.ipynb    # Network topology and simulation visualization
 │   ├── results/                        # Trained models and detection results
-│   │   ├── tuned_detector/            # Baseline ANN detector model
+│   │   ├── tuned_detector/            # ANN detector model
 │   │   └── supervised_ann_detector/   # Final supervised ANN event detector
 │   └── event_detection_pipeline/       # Main ANN detection pipeline module
 │       ├── __init__.py                 # Package exports
@@ -318,7 +318,7 @@ The ANN pipeline produces a JSON report with the following structure:
 - Combines residual-based and supervised classification approaches
 - Generates detection results with alarms, probabilities, and diagnostics
 
-**Linear Predictor Baseline (linear_predictor.py, linear_predictor_functions.py):**
+**Linear Predictor (linear_predictor.py, linear_predictor_functions.py):**
 
 - Implements linear regression for chlorine prediction
 - Uses standardized chlorine and flow measurements
@@ -329,7 +329,7 @@ The ANN pipeline produces a JSON report with the following structure:
 
 - Greedy randomized algorithm for selecting a subset of chlorine sensors
 - Balances detection performance against infrastructure cost
-- Applied to both ANN and linear baseline approaches
+- Applied to both ANN and linear predictor approaches
 - Identified 3-sensor configurations maintaining competitive accuracy
 
 ## Notes on Model Defaults
@@ -349,7 +349,7 @@ The ANN detector is configured with the following defaults:
 
 To retrain a detector with modified feature layouts, saved models must be discarded and the pipeline re-run.
 
-### Linear Baseline
+### Linear Regression
 
 - Uses standardized chlorine, flow, and arsenic measurements (z-score normalization)
 - Trains on normal operation periods only
@@ -360,7 +360,7 @@ To retrain a detector with modified feature layouts, saved models must be discar
 
 - **Limited Single Indicator:** The framework relies only on chlorine concentration as the water quality indicator. Performance could improve with additional measurements
 - **Recall Gap:** Current detection recall (44.97%–63.47%) reflects the restrictive sensing conditions (single indicator), but leaves room for improvement through additional data integration
-- **Linear Model Inadequacy:** The linear regression baseline could not reliably distinguish contamination events from normal operation, even with various modifications, highlighting the need for nonlinear models
+- **Linear Model Inadequacy:** The linear regression could not reliably distinguish contamination events from normal operation, even with various modifications, highlighting the need for nonlinear models
 - **Future Directions:**
   - Evaluate on larger, more realistic water distribution networks
   - Investigate additional contamination scenarios and types
