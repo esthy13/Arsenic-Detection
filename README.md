@@ -10,7 +10,7 @@ Arsenic contamination in drinking water poses severe health risks, including nau
 
 The main contribution of this work is an integrated pipeline that combines **Artificial Neural Network (ANN)-based arsenic contamination detection** with **GRASP-based sensor optimization**. The ANN identifies contamination events from chlorine concentration measurements, while a Greedy Randomized Adaptive Search Procedure (GRASP) optimizes sensor placement to reduce monitoring infrastructure costs without significantly sacrificing detection performance.
 
-A **linear regression baseline** is also included for comparison, demonstrating the superiority of nonlinear approaches for this complex detection task.
+A **linear regression** is also included for comparison, demonstrating the superiority of nonlinear approaches for this complex detection task.
 
 ## Key Results
 
@@ -20,10 +20,10 @@ A **linear regression baseline** is also included for comparison, demonstrating 
 - **Chlorine Prediction Accuracy:** R² ≈ 0.91, indicating that chlorine concentrations can be modeled accurately with neural networks
 - **Sensor Optimization:** GRASP successfully identified effective sensor configurations with only 3 chlorine sensors (instead of the full network deployment) while maintaining competitive detection performance
 
-### Baseline Comparison
+### Comparison
 
-- **Linear Regression Baseline:** Despite various modifications (stronger contamination scenarios, power amplification, gliding time frames), the linear predictor proved insufficient for reliable contamination detection
-- **Key Finding:** The nonlinear ANN substantially outperforms the linear baseline, demonstrating that capturing complex relationships between hydraulic conditions, chlorine concentrations, and contamination events requires nonlinear models
+- **Linear Regression:** Despite various modifications (stronger contamination scenarios, power amplification, gliding time frames), the linear predictor proved insufficient for reliable contamination detection
+- **Key Finding:** The nonlinear ANN substantially outperforms the linear model, demonstrating that capturing complex relationships between hydraulic conditions, chlorine concentrations, and contamination events requires nonlinear models
 
 ## Repository Structure
 
@@ -185,7 +185,7 @@ result = detector.detect(Path("path/to/test_file.npz"))
 print(f"Balanced Accuracy: {result.summary()['balanced_accuracy']}")
 ```
 
-### Run the Linear Regression Baseline
+### Run the Linear Regression Model
 
 The linear predictor baseline is implemented in `src/linear_predictor.py`. It uses:
 
@@ -193,7 +193,7 @@ The linear predictor baseline is implemented in `src/linear_predictor.py`. It us
 - Residual thresholds to detect anomalies (deviations from predicted chlorine indicate contamination)
 - GRASP optimization to select the most informative sensor subset
 
-To run the baseline, execute:
+To run the model, execute:
 
 ```bash
 uv run python src/linear_predictor.py
