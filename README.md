@@ -185,7 +185,7 @@ print(f"Balanced Accuracy: {result.summary()['balanced_accuracy']}")
 
 ### Run the Linear Regression Model
 
-The linear predictor baseline is implemented in `src/linear_predictor.py`. It uses:
+The linear predictor model is implemented in `src/linear_predictor.py`. It uses:
 
 - Linear regression to predict chlorine concentrations from flow and historical chlorine measurements
 - Residual thresholds to detect anomalies (deviations from predicted chlorine indicate contamination)
