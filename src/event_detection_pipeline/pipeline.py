@@ -13,9 +13,6 @@ from .constants import (
 )
 from .data import (
     collect_default_data_paths,
-    event_flags_from_time,
-    load_npz_file,
-    make_supervised_sequences,
     split_file,
     split_train_test,
 )

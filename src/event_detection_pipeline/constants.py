@@ -3,7 +3,3 @@ DEFAULT_EVENT_END_SECONDS = 4 * 24 * 60 * 60
 DEFAULT_HISTORY = 48
 DEFAULT_ARSENIC_THRESHOLD = 0.01
 SECONDS_PER_DAY = 24 * 60 * 60
-
-#How where these constants chosen?
-# event start/end: taken from the simulated contamination schedule
-# history: 48 half-hour samples capture one complete daily demand cycle
