@@ -120,9 +120,6 @@ def evaluate_threshold(
     sensitivity = true_positive / (true_positive + false_negative) if true_positive + false_negative else 0.0
     false_positive_rate = false_positive / (false_positive + true_negative) if false_positive + true_negative else 0.0
 
-    # penalty = 1.0 if np.all(outliers == outliers[0]) else 0.0
-    # objective = -((true_positive + true_negative) / len(event_flags)) + penalty
-
     specificity = true_negative / (true_negative + false_positive)
     balanced_accuracy = 0.5 * (sensitivity + specificity)
     objective = -balanced_accuracy
