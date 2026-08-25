@@ -1,5 +1,5 @@
 # Arsenic Detection in Water Distribution Networks
-
+Data-driven (arsenic) contamination detection project for the course Machine Learning for Water Distribution System at the University of Bielefeld (a.a. 2025-2026)
 ## Overview
 
 This project investigates machine-learning-based methods for detecting arsenic contamination in drinking water distribution systems. While traditional chemical analysis is commonly used for arsenic detection, this work explores an alternative approach using data-driven models that leverage water quality measurements from distributed sensor networks.
